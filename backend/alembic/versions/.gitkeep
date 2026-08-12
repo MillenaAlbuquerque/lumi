@@ -1,0 +1,2 @@
+This directory holds Alembic migration scripts, generated with:
+    alembic revision --autogenerate -m "message"
