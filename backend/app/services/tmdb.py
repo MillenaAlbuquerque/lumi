@@ -18,7 +18,11 @@ class TMDbService:
         return await self._get(f"/movie/{tmdb_id}")
 
     async def _get(self, path: str, params: dict | None = None) -> dict:
-        request_params = {"api_key": self._api_key, **(params or {})}
+        request_params = {
+            "api_key": self._api_key,
+            "language": "pt-BR",
+            **(params or {}),
+        }
         try:
             async with httpx.AsyncClient(base_url=self._base_url, timeout=10.0) as client:
                 response = await client.get(path, params=request_params)

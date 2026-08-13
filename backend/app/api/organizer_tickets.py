@@ -42,7 +42,7 @@ async def organizer_ticket_dashboard(
             .join(Movie, Event.movie_id == Movie.id)
             .join(ReservationSeat, ReservationSeat.event_id == Event.id)
             .join(Ticket, Ticket.reservation_seat_id == ReservationSeat.id)
-            .where(Cinema.organizer_id == current_user.id)
+            .where(Cinema.organizer_id == current_user.id, Ticket.status != TicketStatus.cancelled)
             .group_by(Event.id, Movie.id, Room.id)
             .order_by(Event.start_datetime.desc())
         )

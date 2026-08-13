@@ -19,12 +19,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Check if user is already logged in
-    const storedUser = authService.getUser()
-    if (storedUser) {
-      setUser(storedUser)
+    let active = true
+
+    const restoreSession = async () => {
+      const token = authService.getToken()
+      if (!token) {
+        authService.logout()
+        if (active) setIsLoading(false)
+        return
+      }
+
+      try {
+        const currentUser = await authService.getCurrentUser(token)
+        authService.setUser(currentUser)
+        if (active) setUser(currentUser)
+      } catch {
+        authService.logout()
+        if (active) setUser(null)
+      } finally {
+        if (active) setIsLoading(false)
+      }
     }
-    setIsLoading(false)
+
+    void restoreSession()
+    return () => { active = false }
   }, [])
 
   const login = async (email: string, password: string) => {

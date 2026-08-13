@@ -34,6 +34,8 @@ async function get<T>(endpoint: string): Promise<T> {
 }
 
 export const clientShowtimeService = {
+  listAvailableCinemas: () => get<AvailableCinema[]>('/cinemas'),
+  listCinemaMovies: (cinemaId: number) => get<AvailableMovie[]>(`/cinemas/${cinemaId}/movies`),
   listMovies: (date?: string) => get<AvailableMovie[]>(date ? `/movies?date=${encodeURIComponent(date)}` : '/movies'),
   listCinemas: (movieId: number) => get<AvailableCinema[]>(`/movies/${movieId}/cinemas`),
   listSessions: (movieId: number, cinemaId: number) => get<AvailableSession[]>(`/movies/${movieId}/cinemas/${cinemaId}/sessions`),
@@ -68,7 +70,13 @@ export const clientShowtimeService = {
 
     const connect = () => {
       socket = new WebSocket(`${SEAT_UPDATES_URL}/sessions/${sessionId}/seats/live`)
-      socket.addEventListener('open', () => socket?.send(JSON.stringify({ type: 'authenticate', token })))
+      socket.addEventListener('open', () => {
+        if (closed) {
+          socket?.close()
+          return
+        }
+        socket?.send(JSON.stringify({ type: 'authenticate', token }))
+      })
       socket.addEventListener('message', (event) => {
         try {
           onUpdate(JSON.parse(event.data) as SeatUpdate)
@@ -85,7 +93,7 @@ export const clientShowtimeService = {
     return () => {
       closed = true
       if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer)
-      socket?.close()
+      if (socket?.readyState === WebSocket.OPEN) socket.close()
     }
   },
   saveSelection: (session: AvailableSession) => sessionStorage.setItem('lumi_selected_session', JSON.stringify(session)),

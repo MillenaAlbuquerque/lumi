@@ -20,6 +20,7 @@ export interface ClientTicket {
   seat_number: number
   price: number
   token: string
+  manual_code: string
 }
 
 export const ticketService = {
@@ -38,6 +39,15 @@ export const ticketService = {
     const token = authService.getToken()
     const response = await fetch(`${API_BASE_URL}/client/tickets/${ticketId}/share`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
     if (!response.ok) throw new Error('Não foi possível gerar o link de compartilhamento.')
+    return response.json()
+  },
+  async cancel(ticketId: number): Promise<ClientTicket> {
+    const token = authService.getToken()
+    const response = await fetch(`${API_BASE_URL}/client/tickets/${ticketId}/cancel`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+    if (!response.ok) {
+      const body = await response.json().catch(() => null)
+      throw new Error(body?.detail || 'Não foi possível cancelar o ingresso.')
+    }
     return response.json()
   },
   async getShared(shareToken: string): Promise<Omit<ClientTicket, 'id' | 'issued_at' | 'reservation_id' | 'session_id' | 'price'>> {

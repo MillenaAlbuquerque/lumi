@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Armchair, Clock, CreditCard, Film, MapPin, Star, X } from 'lucide-react'
+import { Armchair, Clock, CreditCard, Film, LoaderCircle, MapPin, Star, X } from 'lucide-react'
 import { authService } from '../../../../services/authService'
 import {
   clientShowtimeService,
@@ -24,6 +24,7 @@ interface CinemaSessions {
 
 interface MovieDetailsModalProps {
   movie: AvailableMovie | null
+  cinemaId?: number
   open: boolean
   onOpenChange: (open: boolean) => void
   onSelectSession: (movie: AvailableMovie, cinema: AvailableCinema, session: AvailableSession) => void
@@ -31,7 +32,7 @@ interface MovieDetailsModalProps {
 
 type CheckoutStep = 'sessions' | 'seats' | 'payment'
 
-function MovieDetailsModal({ movie, open, onOpenChange, onSelectSession }: MovieDetailsModalProps) {
+function MovieDetailsModal({ movie, cinemaId, open, onOpenChange, onSelectSession }: MovieDetailsModalProps) {
   const navigate = useNavigate()
   const [groups, setGroups] = useState<CinemaSessions[]>([])
   const [loading, setLoading] = useState(false)
@@ -47,9 +48,13 @@ function MovieDetailsModal({ movie, open, onOpenChange, onSelectSession }: Movie
   const [holdFinalized, setHoldFinalized] = useState(false)
   const [creatingHold, setCreatingHold] = useState(false)
   const [holdMessage, setHoldMessage] = useState('')
+  const [backdropLoading, setBackdropLoading] = useState(false)
+  const [backdropError, setBackdropError] = useState(false)
 
   useEffect(() => {
     if (!open || !movie) return
+    setBackdropLoading(Boolean(movie.backdrop_url))
+    setBackdropError(false)
     setActiveStep('sessions')
     setSelectedCinema(null)
     setSelectedSession(null)
@@ -63,11 +68,12 @@ function MovieDetailsModal({ movie, open, onOpenChange, onSelectSession }: Movie
     setError('')
     setGroups([])
     clientShowtimeService.listCinemas(movie.id)
+      .then((cinemas) => cinemaId ? cinemas.filter((cinema) => cinema.id === cinemaId) : cinemas)
       .then(async (cinemas) => Promise.all(cinemas.map(async (cinema) => ({ cinema, sessions: await clientShowtimeService.listSessions(movie.id, cinema.id) }))))
       .then(setGroups)
       .catch((requestError: Error) => setError(requestError.message))
       .finally(() => setLoading(false))
-  }, [movie, open])
+  }, [movie, open, cinemaId])
 
   useEffect(() => {
     if (!open || !selectedSession) return
@@ -79,7 +85,7 @@ function MovieDetailsModal({ movie, open, onOpenChange, onSelectSession }: Movie
           const availability = await clientShowtimeService.listSessionSeats(sessionId)
           const ownHeldIds = new Set(activeHold?.seat_ids || [])
           setSeats(availability.seats.map((seat) => ownHeldIds.has(seat.id) ? { ...seat, occupied: false } : seat))
-          const occupiedIds = new Set(availability.seats.filter((seat) => seat.occupied).map((seat) => seat.id))
+          const occupiedIds = new Set(availability.seats.filter((seat) => seat.occupied && !ownHeldIds.has(seat.id)).map((seat) => seat.id))
           setSelectedSeatIds((current) => current.filter((id) => !occupiedIds.has(id)))
         } catch {
           // The regular API error handling remains responsible for unavailable sessions.
@@ -89,7 +95,8 @@ function MovieDetailsModal({ movie, open, onOpenChange, onSelectSession }: Movie
       if ((update.type === 'seats_occupied' || update.type === 'seats_held') && update.seat_ids?.length) {
         const occupiedIds = new Set(update.seat_ids)
         setSeats((current) => current.map((seat) => occupiedIds.has(seat.id) ? { ...seat, occupied: true } : seat))
-        setSelectedSeatIds((current) => current.filter((id) => !occupiedIds.has(id)))
+        const ownHeldIds = new Set(activeHold?.seat_ids || [])
+        setSelectedSeatIds((current) => current.filter((id) => !occupiedIds.has(id) || ownHeldIds.has(id)))
       } else if (update.type === 'seats_released' && update.seat_ids?.length) {
         const releasedIds = new Set(update.seat_ids)
         setSeats((current) => current.map((seat) => releasedIds.has(seat.id) ? { ...seat, occupied: false } : seat))
@@ -221,7 +228,8 @@ function MovieDetailsModal({ movie, open, onOpenChange, onSelectSession }: Movie
 
   return <Modal open={open} onOpenChange={(nextOpen) => nextOpen ? onOpenChange(true) : closeModal()} title={movie.title} hideHeader className={`bg-mauve-950 transition-[max-width] duration-300 ${activeStep === 'payment' ? 'max-w-6xl' : 'max-w-4xl'}`}>
     <div className="relative overflow-hidden bg-slate-950 mb-2 text-white">
-      {movie.backdrop_url && <img src={movie.backdrop_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-25" />}
+      {backdropLoading && <div className="absolute inset-0 flex items-center justify-center bg-slate-900"><LoaderCircle className="h-8 w-8 animate-spin text-orange-400/70" /></div>}
+      {movie.backdrop_url && !backdropError && <img src={movie.backdrop_url} alt="" onLoad={() => setBackdropLoading(false)} onError={() => { setBackdropLoading(false); setBackdropError(true) }} className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${backdropLoading ? 'opacity-0' : 'opacity-25'}`} />}
       <button type="button" onClick={closeModal} className="absolute right-4 top-4 z-20 cursor-pointer rounded-full bg-slate-950/60 p-2 text-white backdrop-blur transition hover:bg-orange-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400" aria-label="Fechar">
         <X className="h-5 w-5" />
       </button>
@@ -248,7 +256,7 @@ function MovieDetailsModal({ movie, open, onOpenChange, onSelectSession }: Movie
         <TabsTrigger value="payment" disabled={selectedSeatIds.length === 0}><CreditCard className="h-4 w-4" />Pagamento</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="sessions" className="space-y-5 pt-3">
+      <TabsContent value="sessions" className="session-purchase-buttons space-y-5 pt-3">
         {loading ? <p className="py-8 text-center text-slate-500">Carregando horários...</p> : error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p> : groups.map(({ cinema, sessions }) => <section key={cinema.id} className="p-2">
           <div className="mb-4"><h3 className="flex items-center gap-2 font-medium text-[var(--color-primary-dark)]"><Film className="h-4 w-4" />{cinema.name}</h3><p className="mt-1 flex items-center gap-1 text-sm text-slate-500"><MapPin className="h-3.5 w-3.5" />{cinema.address}</p></div>
           <div className="flex flex-wrap gap-2">{sessions.map((session) => {

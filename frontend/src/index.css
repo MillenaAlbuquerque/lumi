@@ -50,3 +50,137 @@ body {
 #root {
   min-height: 100vh;
 }
+
+@keyframes cinema-movies-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-18px) scaleY(0.96);
+    transform-origin: top;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes movie-carousel-main-enter {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    clip-path: inset(0 0 0 35% round 2rem);
+    transform: translateX(70px) scale(0.88) rotate(2deg);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    clip-path: inset(0 0 0 0 round 2rem);
+    transform: translateX(0) scale(1) rotate(0);
+  }
+}
+
+@keyframes movie-carousel-side-enter {
+  from {
+    opacity: 0;
+    filter: blur(5px);
+  }
+}
+
+.movie-carousel-main-enter {
+  will-change: opacity, transform, filter, clip-path;
+  animation: movie-carousel-main-enter 950ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.movie-carousel-side-enter {
+  animation: movie-carousel-side-enter 650ms ease-out both;
+}
+
+@keyframes cinema-movie-card-reveal {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(28px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
+}
+
+.cinema-movies-reveal {
+  transform-origin: top;
+  animation: cinema-movies-reveal 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.cinema-movie-card-reveal {
+  opacity: 0;
+  will-change: opacity, transform, filter;
+  animation: cinema-movie-card-reveal 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.session-purchase-buttons section button {
+  position: relative;
+  min-width: 9rem;
+  min-height: 3.5rem;
+  overflow: hidden;
+}
+
+.session-purchase-buttons section button > span {
+  transition: opacity 280ms ease, transform 280ms ease;
+}
+
+.session-purchase-buttons section button::after {
+  content: 'Comprar';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary-dark);
+  font-weight: 600;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 280ms ease, transform 280ms ease;
+}
+
+.session-purchase-buttons section button:hover > span,
+.session-purchase-buttons section button:focus-visible > span {
+  opacity: 0;
+  transform: translateY(-12px);
+}
+
+.session-purchase-buttons section button:hover::after,
+.session-purchase-buttons section button:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+@keyframes modal-backdrop-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-content-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.975);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-backdrop-enter {
+  animation: modal-backdrop-enter 220ms ease-out both;
+}
+
+.modal-content-enter {
+  animation: modal-content-enter 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop-enter,
+  .modal-content-enter {
+    animation: none;
+  }
+}

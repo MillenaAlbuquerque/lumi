@@ -1,4 +1,5 @@
-const API_BASE_URL = 'http://localhost:8000/api'
+const configuredApiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
+const API_BASE_URL = configuredApiUrl.endsWith('/api') ? configuredApiUrl : `${configuredApiUrl}/api`
 
 export interface LoginCredentials {
   email: string
@@ -53,12 +54,16 @@ class AuthService {
 
     const authData: AuthResponse = await response.json()
     
-    // Store token
     this.setToken(authData.access_token)
 
-    // Get user data
-    const user = await this.getCurrentUser(authData.access_token)
-    this.setUser(user)
+    let user: User
+    try {
+      user = await this.getCurrentUser(authData.access_token)
+      this.setUser(user)
+    } catch (error) {
+      this.logout()
+      throw error
+    }
 
     return { token: authData.access_token, user }
   }
@@ -136,7 +141,13 @@ class AuthService {
 
   getUser(): User | null {
     const userStr = localStorage.getItem(this.USER_KEY)
-    return userStr ? JSON.parse(userStr) : null
+    if (!userStr) return null
+    try {
+      return JSON.parse(userStr) as User
+    } catch {
+      this.logout()
+      return null
+    }
   }
 
   setUser(user: User): void {

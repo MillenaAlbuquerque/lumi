@@ -23,6 +23,7 @@ class ClientTicketRead(BaseModel):
     seat_number: int
     price: Decimal
     token: str
+    manual_code: str
 
 
 class TicketShareRead(BaseModel):
@@ -42,3 +43,4 @@ class SharedTicketRead(BaseModel):
     seat_row: str
     seat_number: int
     token: str
+    manual_code: str

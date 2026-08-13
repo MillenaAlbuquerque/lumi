@@ -16,7 +16,7 @@ from app.models.room import Room
 from app.models.ticket import Ticket
 from app.models.user import User
 from app.schemas.entrance import EntranceEventRead, EntranceValidationCreate, EntranceValidationRead
-from app.services.tickets import ticket_reservation_seat_id
+from app.services.tickets import ticket_id_from_manual_code, ticket_reservation_seat_id
 
 router = APIRouter(prefix="/entrance", tags=["entrance"])
 
@@ -78,13 +78,22 @@ async def validate_entrance_ticket(
     if allowed_event is None:
         return _ticket_result("wrong_event", "Esta sessão não pertence ao cinema da portaria.")
 
-    reservation_seat_id = ticket_reservation_seat_id(payload.token.strip())
-    if reservation_seat_id is None:
+    submitted_code = payload.token.strip()
+    manual_ticket_id = ticket_id_from_manual_code(submitted_code)
+    reservation_seat_id = (
+        None if manual_ticket_id is not None else ticket_reservation_seat_id(submitted_code)
+    )
+    if reservation_seat_id is None and manual_ticket_id is None:
         return _ticket_result("invalid", "Código de ingresso inválido.")
 
+    ticket_lookup = (
+        Ticket.id == manual_ticket_id
+        if manual_ticket_id is not None
+        else Ticket.reservation_seat_id == reservation_seat_id
+    )
     ticket = await db.scalar(
         select(Ticket)
-        .where(Ticket.reservation_seat_id == reservation_seat_id)
+        .where(ticket_lookup)
         .with_for_update()
         .options(
             selectinload(Ticket.reservation_seat).selectinload(ReservationSeat.seat),
@@ -92,8 +101,11 @@ async def validate_entrance_ticket(
             selectinload(Ticket.reservation_seat).selectinload(ReservationSeat.event).selectinload(Event.room),
         )
     )
-    token_hash = hashlib.sha256(payload.token.strip().encode("utf-8")).hexdigest()
-    if ticket is None or not hmac.compare_digest(ticket.token_hash, token_hash):
+    token_hash = hashlib.sha256(submitted_code.encode("utf-8")).hexdigest()
+    if ticket is None or (
+        manual_ticket_id is None
+        and not hmac.compare_digest(ticket.token_hash, token_hash)
+    ):
         return _ticket_result("invalid", "Código de ingresso inválido.")
     if ticket.reservation_seat.event_id != payload.event_id:
         return _ticket_result("wrong_event", "O ingresso pertence a outra sessão.", ticket)

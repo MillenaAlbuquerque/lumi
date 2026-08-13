@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, Numeric, UniqueConstraint
+from sqlalchemy import ForeignKey, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -10,10 +10,6 @@ class ReservationSeat(Base):
     """Assento específico incluído em uma reserva, com o preço praticado no momento."""
 
     __tablename__ = "reservation_seats"
-    __table_args__ = (
-        UniqueConstraint("event_id", "seat_id", name="uq_reservation_seat_event_seat"),
-    )
-
     id: Mapped[int] = mapped_column(primary_key=True)
     reservation_id: Mapped[int] = mapped_column(ForeignKey("reservations.id"), nullable=False)
     event_id: Mapped[int] = mapped_column(ForeignKey("events.id"), nullable=False)

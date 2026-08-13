@@ -1,20 +1,21 @@
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import case, delete, func, select
+from sqlalchemy import and_, case, delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.models.cinema import Cinema
 from app.models.event import Event
-from app.models.enums import ReservationStatus
+from app.models.enums import ReservationStatus, TicketStatus
 from app.models.movie import Movie
 from app.models.reservation import Reservation
 from app.models.reservation_seat import ReservationSeat
 from app.models.room import Room
 from app.models.seat import Seat
 from app.models.user import User
+from app.models.ticket import Ticket
 from app.models.payment import Payment
 from app.api.deps import require_client
 from app.schemas.client_showtime import AvailableCinemaRead, AvailableMovieRead, AvailableSessionRead, SessionSeatAvailabilityRead
@@ -23,6 +24,46 @@ from app.services.seat_holds import expire_seat_holds
 from app.services.seat_updates import seat_update_manager
 
 router = APIRouter(prefix="/client/showtimes", tags=["client-showtimes"])
+
+
+@router.get("/cinemas", response_model=list[AvailableCinemaRead])
+async def available_cinemas_list(
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    rows = await db.execute(
+        select(Cinema.id.label("id"), Cinema.name, Cinema.address)
+        .distinct()
+        .join(Room, Room.cinema_id == Cinema.id)
+        .join(Event, Event.room_id == Room.id)
+        .where(Event.start_datetime > func.now())
+        .order_by(Cinema.name)
+    )
+    return [dict(row._mapping) for row in rows.all()]
+
+
+@router.get("/cinemas/{cinema_id}/movies", response_model=list[AvailableMovieRead])
+async def cinema_available_movies(
+    cinema_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    rows = await db.execute(
+        select(
+            Movie.id.label("id"),
+            Movie.title,
+            Movie.poster_url,
+            Movie.duration_minutes,
+            Movie.description,
+            Movie.rating,
+            Movie.release_date,
+            Movie.backdrop_url,
+        )
+        .distinct()
+        .join(Event, Event.movie_id == Movie.id)
+        .join(Room, Event.room_id == Room.id)
+        .where(Room.cinema_id == cinema_id, Event.start_datetime > func.now())
+        .order_by(Movie.title)
+    )
+    return [dict(row._mapping) for row in rows.all()]
 
 
 @router.get("/movies", response_model=list[AvailableMovieRead])
@@ -127,9 +168,13 @@ async def session_seat_availability(
     occupied_seats = (
         select(ReservationSeat.seat_id)
         .join(Reservation, Reservation.id == ReservationSeat.reservation_id)
+        .outerjoin(Ticket, Ticket.reservation_seat_id == ReservationSeat.id)
         .where(
             ReservationSeat.event_id == session_id,
-            Reservation.status.in_([ReservationStatus.pending, ReservationStatus.confirmed]),
+            or_(
+                Reservation.status == ReservationStatus.pending,
+                and_(Reservation.status == ReservationStatus.confirmed, or_(Ticket.id.is_(None), Ticket.status != TicketStatus.cancelled)),
+            ),
         )
     )
     seat_rows = await db.execute(
@@ -175,10 +220,14 @@ async def create_seat_hold(
     occupied_ids = set((await db.scalars(
         select(ReservationSeat.seat_id)
         .join(Reservation, Reservation.id == ReservationSeat.reservation_id)
+        .outerjoin(Ticket, Ticket.reservation_seat_id == ReservationSeat.id)
         .where(
             ReservationSeat.event_id == session_id,
             ReservationSeat.seat_id.in_(payload.seat_ids),
-            Reservation.status.in_([ReservationStatus.pending, ReservationStatus.confirmed]),
+            or_(
+                Reservation.status == ReservationStatus.pending,
+                and_(Reservation.status == ReservationStatus.confirmed, or_(Ticket.id.is_(None), Ticket.status != TicketStatus.cancelled)),
+            ),
         )
     )).all())
     if occupied_ids:

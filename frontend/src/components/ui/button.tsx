@@ -12,7 +12,7 @@ const buttonVariants = cva(
         secondary:
           "bg-[var(--color-primary)] cursor-pointertext-white shadow-[0_10px_24px_rgba(72,30,0,0.22)] hover:bg-black hover:shadow-[0_12px_28px_rgba(0,0,0,0.35)]",
         outline:
-          "border-1 border-[var(--color-surface-muted)] cursor-pointer bg-transparent text-[var(--color-surface)] hover:bg-[var(--color-primary-dark)] hover:text-white",
+          "border-1 border-[var(--color-surface-muted)] cursor-pointer bg-transparent text-[var(--color-surface)] hover:bg-[var(--color-surface)] hover:text-[var(--color-primary-dark)] hover:shadow-[0_12px_28px_rgba(248,186,81,0.35)]",
         ghost:
           "text-[var(--color-primary-dark)] cursor-pointer hover:bg-white/60",
         link:

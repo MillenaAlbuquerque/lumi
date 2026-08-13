@@ -9,6 +9,56 @@ from app.models.reservation_seat import ReservationSeat
 from app.models.ticket import Ticket
 from app.core.config import settings
 
+MANUAL_CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+
+
+def _base32_encode(value: int, length: int) -> str:
+    chars = []
+    for _ in range(length):
+        chars.append(MANUAL_CODE_ALPHABET[value & 31])
+        value >>= 5
+    return "".join(reversed(chars))
+
+
+def _base32_decode(value: str) -> int | None:
+    result = 0
+    try:
+        for char in value:
+            result = (result << 5) | MANUAL_CODE_ALPHABET.index(char)
+        return result
+    except ValueError:
+        return None
+
+
+def ticket_manual_code(ticket_id: int) -> str:
+    payload = ticket_id.to_bytes(4, "big")
+    mask = hmac.new(
+        settings.jwt_secret_key.encode(), b"lumi-manual-mask", hashlib.sha256
+    ).digest()[:4]
+    obfuscated_payload = bytes(left ^ right for left, right in zip(payload, mask))
+    signature = hmac.new(
+        settings.jwt_secret_key.encode(), b"lumi-manual:" + payload, hashlib.sha256
+    ).digest()[:3]
+    encoded = _base32_encode(int.from_bytes(signature + obfuscated_payload, "big"), 12)
+    return f"{encoded[:4]}-{encoded[4:8]}-{encoded[8:]}"
+
+
+def ticket_id_from_manual_code(code: str) -> int | None:
+    normalized = "".join(char for char in code.upper() if char.isalnum())
+    if len(normalized) != 12:
+        return None
+    packed = _base32_decode(normalized)
+    if packed is None:
+        return None
+    raw = packed.to_bytes(8, "big")[-7:]
+    mask = hmac.new(
+        settings.jwt_secret_key.encode(), b"lumi-manual-mask", hashlib.sha256
+    ).digest()[:4]
+    payload = bytes(left ^ right for left, right in zip(raw[3:], mask))
+    ticket_id = int.from_bytes(payload, "big")
+    expected = ticket_manual_code(ticket_id).replace("-", "")
+    return ticket_id if hmac.compare_digest(expected, normalized) else None
+
 
 def generate_ticket_token(reservation_seat_id: int) -> tuple[str, str]:
     """Create an authenticated token that can be reproduced without storing it."""

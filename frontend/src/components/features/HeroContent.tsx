@@ -1,6 +1,14 @@
 import { Button } from '../ui/button'
+import { useNavigate } from 'react-router-dom'
 
 function HeroContent() {
+  const navigate = useNavigate()
+
+  const goToMovies = () => {
+    navigate('/#sessoes')
+    window.requestAnimationFrame(() => document.getElementById('sessoes')?.scrollIntoView({ behavior: 'smooth' }))
+  }
+
   return (
     <div className="relative space-y-8 p-6 lg:p-4">
       {/* Decorative Popcorn SVG */}
@@ -34,11 +42,11 @@ function HeroContent() {
 
         {/* Call to Action Buttons */}
         <div className="flex flex-wrap items-center gap-4 pt-2">
-          <Button size="lg" className="shadow-xl">
-            Ver Filmes em Cartaz
+          <Button type="button" size="lg" className="shadow-xl" onClick={goToMovies}>
+            Filmes em Cartaz
           </Button>
-          <Button variant="outline" size="lg">
-            Meus Ingressos
+          <Button type="button" variant="outline" size="lg" onClick={() => navigate('/cinemas')}>
+            Cinemas
           </Button>
         </div>
       </div>

@@ -120,19 +120,21 @@ function MovieCarousel() {
       >
         {prevMovie && (
           <button
+            key={`previous-${prevMovie.id}-${selectedIndex}`}
             type="button"
             onClick={goPrev}
             aria-label={`Filme anterior: ${prevMovie.title}`}
-            className="absolute right-0 z-10 hidden h-[70%] w-[30%] translate-x-[16%] scale-[0.85] overflow-hidden rounded-3xl opacity-40 shadow-xl transition-all duration-300 hover:translate-x-[12%] hover:opacity-60 sm:block sm:h-[78%] sm:w-[34%]"
+            className="movie-carousel-side-enter absolute right-0 z-10 hidden h-[70%] w-[30%] translate-x-[16%] scale-[0.85] overflow-hidden rounded-3xl opacity-40 shadow-xl transition-all duration-500 hover:translate-x-[12%] hover:opacity-60 sm:block sm:h-[78%] sm:w-[34%]"
           >
             {renderSidePoster(prevMovie)}
           </button>
         )}
 
         <div
-          className="relative z-20 w-[85%] max-w-[220px] sm:w-[68%] sm:max-w-xs md:max-w-sm lg:max-w-md"
+          key={`main-${mainMovie.id}-${selectedIndex}`}
+          className={`relative z-20 w-[85%] max-w-[220px] sm:w-[68%] sm:max-w-xs md:max-w-sm lg:max-w-md ${isDragging ? '' : 'movie-carousel-main-enter'}`}
           style={{
-            transform: `translateX(${dragOffset}px)`,
+            transform: isDragging || dragOffset !== 0 ? `translateX(${dragOffset}px)` : undefined,
             transition: isDragging ? 'none' : 'transform 300ms ease',
           }}
         >
@@ -180,10 +182,11 @@ function MovieCarousel() {
 
         {nextMovie && hasAdvanced && (
           <button
+            key={`next-${nextMovie.id}-${selectedIndex}`}
             type="button"
             onClick={goNext}
             aria-label={`Próximo filme: ${nextMovie.title}`}
-            className="absolute left-0 z-10 hidden h-[70%] w-[30%] -translate-x-[16%] scale-[0.85] overflow-hidden rounded-3xl opacity-40 shadow-xl transition-all duration-300 hover:-translate-x-[12%] hover:opacity-60 sm:block sm:h-[78%] sm:w-[34%]"
+            className="movie-carousel-side-enter absolute left-0 z-10 hidden h-[70%] w-[30%] -translate-x-[16%] scale-[0.85] overflow-hidden rounded-3xl opacity-40 shadow-xl transition-all duration-500 hover:-translate-x-[12%] hover:opacity-60 sm:block sm:h-[78%] sm:w-[34%]"
           >
             {renderSidePoster(nextMovie)}
           </button>

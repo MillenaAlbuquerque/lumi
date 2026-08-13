@@ -6,11 +6,16 @@ import OrganizerDashboardPage from '../pages/organizer/OrganizerDashboardPage'
 import GatekeeperPage from '../pages/gatekeeper/GatekeeperPage'
 import ClientTicketsPage from '../pages/client/ClientTicketsPage'
 import SharedTicketPage from '../pages/client/SharedTicketPage'
+import CinemasPage from '../pages/CinemasPage'
 
 const router = createBrowserRouter([
   {
     path: '/',
     element: <HomePage />,
+  },
+  {
+    path: '/cinemas',
+    element: <CinemasPage />,
   },
   {
     path: '/login',

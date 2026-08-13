@@ -2,14 +2,14 @@ from decimal import Decimal
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
-from sqlalchemy import delete, func, select
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import require_client
 from app.db.session import get_db
-from app.models.enums import ReservationStatus
+from app.models.enums import ReservationStatus, TicketStatus
 from app.models.event import Event
 from app.models.payment import Payment
 from app.models.reservation import Reservation
@@ -17,6 +17,7 @@ from app.models.reservation_seat import ReservationSeat
 from app.models.room import Room
 from app.models.seat import Seat
 from app.models.user import User
+from app.models.ticket import Ticket
 from app.schemas.payment import MercadoPagoWebhook, PaymentCreate, PaymentRead
 from app.services.mercado_pago import (
     MercadoPagoClient,
@@ -207,10 +208,14 @@ async def create_payment(
                 Reservation.hold_expires_at,
             )
             .join(Reservation, Reservation.id == ReservationSeat.reservation_id)
+            .outerjoin(Ticket, Ticket.reservation_seat_id == ReservationSeat.id)
             .where(
                 ReservationSeat.event_id == event.id,
                 ReservationSeat.seat_id.in_(payload.seat_ids),
-                Reservation.status.in_([ReservationStatus.pending, ReservationStatus.confirmed]),
+                or_(
+                    Reservation.status == ReservationStatus.pending,
+                    and_(Reservation.status == ReservationStatus.confirmed, or_(Ticket.id.is_(None), Ticket.status != TicketStatus.cancelled)),
+                ),
             )
         )).all()
         if occupied_rows:

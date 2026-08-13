@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState, type ComponentProps } from 'react'
-import { CardPayment, initMercadoPago } from '@mercadopago/sdk-react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from 'react'
 import { CheckCircle2, Clock3, CreditCard, XCircle } from 'lucide-react'
 import { paymentService, type PaymentResult } from '../../../../services/paymentService'
 import { Button } from '../../../ui/button'
+import CardPayment from './MercadoPagoCardBrick'
 
 const publicKey = import.meta.env.VITE_MERCADO_PAGO_PUBLIC_KEY_TEST as string | undefined
-if (publicKey) initMercadoPago(publicKey, { locale: 'pt-BR' })
 
 type CardFormData = Parameters<ComponentProps<typeof CardPayment>['onSubmit']>[0]
 
@@ -31,6 +30,11 @@ function CardPaymentStep({ sessionId, holdId, holdExpiresAt, seatIds, estimatedT
   const brickKey = 0
   const [remainingSeconds, setRemainingSeconds] = useState(() => Math.max(0, Math.ceil((new Date(holdExpiresAt).getTime() - Date.now()) / 1000)))
   const initialization = useMemo(() => ({ amount: estimatedTotal, payer: { email: 'test@testuser.com' } }), [estimatedTotal])
+  const paymentResultCallback = useRef(onPaymentResult)
+
+  useEffect(() => {
+    paymentResultCallback.current = onPaymentResult
+  }, [onPaymentResult])
 
   useEffect(() => {
     const update = () => setRemainingSeconds(Math.max(0, Math.ceil((new Date(holdExpiresAt).getTime() - Date.now()) / 1000)))
@@ -39,7 +43,7 @@ function CardPaymentStep({ sessionId, holdId, holdExpiresAt, seatIds, estimatedT
     return () => window.clearInterval(timer)
   }, [holdExpiresAt])
 
-  const submitPayment = async (formData: CardFormData) => {
+  const submitPayment = useCallback(async (formData: CardFormData) => {
     setError('')
     const identification = formData.payer?.identification
     if (!formData.payer?.email || !identification?.type || !identification.number) {
@@ -61,11 +65,11 @@ function CardPaymentStep({ sessionId, holdId, holdExpiresAt, seatIds, estimatedT
         },
       }, idempotencyKey)
       setResult(payment)
-      onPaymentResult(payment.reservation_status)
+      paymentResultCallback.current(payment.reservation_status)
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Não foi possível processar o pagamento.')
     }
-  }
+  }, [holdId, idempotencyKey, seatIds, sessionId])
 
   if (!publicKey) return <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 text-amber-100"><p className="font-semibold">Pagamento TEST não configurado</p><p className="mt-1 text-sm text-amber-100/75">Adicione <code>VITE_MERCADO_PAGO_PUBLIC_KEY_TEST</code> ao arquivo <code>frontend/.env</code> e reinicie o Vite.</p><button type="button" onClick={onBack} className="mt-4 text-sm font-semibold text-orange-400 underline">Voltar aos assentos</button></div>
 
