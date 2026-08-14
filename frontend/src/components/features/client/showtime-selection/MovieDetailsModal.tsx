@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Armchair, Clock, CreditCard, Film, LoaderCircle, MapPin, Star, X } from 'lucide-react'
+import { getTmdbImageUrl } from '../../../../lib/tmdb-image'
 import { authService } from '../../../../services/authService'
 import {
   clientShowtimeService,
@@ -25,6 +26,7 @@ interface CinemaSessions {
 interface MovieDetailsModalProps {
   movie: AvailableMovie | null
   cinemaId?: number
+  showDate?: string
   open: boolean
   onOpenChange: (open: boolean) => void
   onSelectSession: (movie: AvailableMovie, cinema: AvailableCinema, session: AvailableSession) => void
@@ -32,7 +34,7 @@ interface MovieDetailsModalProps {
 
 type CheckoutStep = 'sessions' | 'seats' | 'payment'
 
-function MovieDetailsModal({ movie, cinemaId, open, onOpenChange, onSelectSession }: MovieDetailsModalProps) {
+function MovieDetailsModal({ movie, cinemaId, showDate, open, onOpenChange, onSelectSession }: MovieDetailsModalProps) {
   const navigate = useNavigate()
   const [groups, setGroups] = useState<CinemaSessions[]>([])
   const [loading, setLoading] = useState(false)
@@ -67,13 +69,13 @@ function MovieDetailsModal({ movie, cinemaId, open, onOpenChange, onSelectSessio
     setLoading(true)
     setError('')
     setGroups([])
-    clientShowtimeService.listCinemas(movie.id)
+    clientShowtimeService.listCinemas(movie.id, showDate)
       .then((cinemas) => cinemaId ? cinemas.filter((cinema) => cinema.id === cinemaId) : cinemas)
-      .then(async (cinemas) => Promise.all(cinemas.map(async (cinema) => ({ cinema, sessions: await clientShowtimeService.listSessions(movie.id, cinema.id) }))))
-      .then(setGroups)
+      .then(async (cinemas) => Promise.all(cinemas.map(async (cinema) => ({ cinema, sessions: await clientShowtimeService.listSessions(movie.id, cinema.id, showDate) }))))
+      .then((items) => setGroups(items.filter((item) => item.sessions.length > 0)))
       .catch((requestError: Error) => setError(requestError.message))
       .finally(() => setLoading(false))
-  }, [movie, open, cinemaId])
+  }, [movie, open, cinemaId, showDate])
 
   useEffect(() => {
     if (!open || !selectedSession) return
@@ -225,17 +227,20 @@ function MovieDetailsModal({ movie, cinemaId, open, onOpenChange, onSelectSessio
   }
 
   const sessionDate = selectedSession ? new Date(selectedSession.start_datetime) : null
+  const backdropUrl = getTmdbImageUrl(movie.backdrop_url, 'w1280')
+  const posterUrl = getTmdbImageUrl(movie.poster_url, 'w500')
 
   return <Modal open={open} onOpenChange={(nextOpen) => nextOpen ? onOpenChange(true) : closeModal()} title={movie.title} hideHeader className={`bg-mauve-950 transition-[max-width] duration-300 ${activeStep === 'payment' ? 'max-w-6xl' : 'max-w-4xl'}`}>
     <div className="relative overflow-hidden bg-slate-950 mb-2 text-white">
-      {backdropLoading && <div className="absolute inset-0 flex items-center justify-center bg-slate-900"><LoaderCircle className="h-8 w-8 animate-spin text-orange-400/70" /></div>}
-      {movie.backdrop_url && !backdropError && <img src={movie.backdrop_url} alt="" onLoad={() => setBackdropLoading(false)} onError={() => { setBackdropLoading(false); setBackdropError(true) }} className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${backdropLoading ? 'opacity-0' : 'opacity-25'}`} />}
+      {posterUrl && <img src={posterUrl} alt="" aria-hidden="true" className="absolute -inset-6 h-[calc(100%+3rem)] w-[calc(100%+3rem)] scale-110 object-cover opacity-20 blur-2xl" />}
+      {backdropUrl && !backdropError && <img key={`${movie.id}-${backdropUrl}`} src={backdropUrl} alt="" onLoad={() => setBackdropLoading(false)} onError={() => { setBackdropLoading(false); setBackdropError(true) }} className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${backdropLoading ? 'opacity-0' : 'opacity-25'}`} />}
+      {backdropLoading && <div className="pointer-events-none absolute right-16 top-5 z-10 rounded-full bg-slate-950/55 p-2 backdrop-blur"><LoaderCircle className="h-4 w-4 animate-spin text-orange-400/80" /></div>}
       <button type="button" onClick={closeModal} className="absolute right-4 top-4 z-20 cursor-pointer rounded-full bg-slate-950/60 p-2 text-white backdrop-blur transition hover:bg-orange-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400" aria-label="Fechar">
         <X className="h-5 w-5" />
       </button>
       <div className="relative grid min-h-[350px,50vh] gap-6 p-6 sm:grid-cols-[150px_1fr]">
         <div className="aspect-[2/3] overflow-hidden rounded-xl bg-slate-800">
-          {movie.poster_url ? <img src={movie.poster_url} alt={`Cartaz de ${movie.title}`} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center"><Film className="h-10 w-10 text-white/40" /></div>}
+          {posterUrl ? <img src={posterUrl} alt={`Cartaz de ${movie.title}`} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center"><Film className="h-10 w-10 text-white/40" /></div>}
         </div>
         <div className="self-center pr-10">
           <h2 className="mb-3 text-2xl font-semibold leading-tight sm:text-3xl">{movie.title}</h2>
@@ -257,7 +262,7 @@ function MovieDetailsModal({ movie, cinemaId, open, onOpenChange, onSelectSessio
       </TabsList>
 
       <TabsContent value="sessions" className="session-purchase-buttons space-y-5 pt-3">
-        {loading ? <p className="py-8 text-center text-slate-500">Carregando horários...</p> : error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p> : groups.map(({ cinema, sessions }) => <section key={cinema.id} className="p-2">
+        {loading ? <p className="py-8 text-center text-slate-500">Carregando horários...</p> : error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p> : groups.length === 0 ? <p className="py-8 text-center text-white/55">Nenhuma sessão disponível para a data selecionada.</p> : groups.map(({ cinema, sessions }) => <section key={cinema.id} className="p-2">
           <div className="mb-4"><h3 className="flex items-center gap-2 font-medium text-[var(--color-primary-dark)]"><Film className="h-4 w-4" />{cinema.name}</h3><p className="mt-1 flex items-center gap-1 text-sm text-slate-500"><MapPin className="h-3.5 w-3.5" />{cinema.address}</p></div>
           <div className="flex flex-wrap gap-2">{sessions.map((session) => {
             const date = new Date(session.start_datetime)

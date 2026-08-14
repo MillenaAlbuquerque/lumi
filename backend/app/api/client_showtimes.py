@@ -24,6 +24,11 @@ from app.services.seat_holds import expire_seat_holds
 from app.services.seat_updates import seat_update_manager
 
 router = APIRouter(prefix="/client/showtimes", tags=["client-showtimes"])
+LUMI_TIMEZONE = "America/Sao_Paulo"
+
+
+def _event_local_date():
+    return func.date(func.timezone(LUMI_TIMEZONE, Event.start_datetime))
 
 
 @router.get("/cinemas", response_model=list[AvailableCinemaRead])
@@ -87,7 +92,7 @@ async def available_movies(
         .where(Event.start_datetime > func.now())
     )
     if show_date is not None:
-        query = query.where(func.date(Event.start_datetime) == show_date)
+        query = query.where(_event_local_date() == show_date)
     rows = await db.execute(query.order_by(Movie.title))
     return [dict(row._mapping) for row in rows.all()]
 
@@ -95,9 +100,10 @@ async def available_movies(
 @router.get("/movies/{movie_id}/cinemas", response_model=list[AvailableCinemaRead])
 async def available_cinemas(
     movie_id: int,
+    show_date: date | None = Query(default=None, alias="date"),
     db: AsyncSession = Depends(get_db),
 ) -> list[dict]:
-    rows = await db.execute(
+    query = (
         select(Cinema.id.label("id"), Cinema.name, Cinema.address)
         .distinct()
         .join(Room, Room.cinema_id == Cinema.id)
@@ -105,6 +111,9 @@ async def available_cinemas(
         .where(Event.movie_id == movie_id, Event.start_datetime > func.now())
         .order_by(Cinema.name)
     )
+    if show_date is not None:
+        query = query.where(_event_local_date() == show_date)
+    rows = await db.execute(query)
     return [dict(row._mapping) for row in rows.all()]
 
 
@@ -115,9 +124,10 @@ async def available_cinemas(
 async def available_sessions(
     movie_id: int,
     cinema_id: int,
+    show_date: date | None = Query(default=None, alias="date"),
     db: AsyncSession = Depends(get_db),
 ) -> list[dict]:
-    rows = await db.execute(
+    query = (
         select(
             Event.id,
             Event.movie_id,
@@ -136,6 +146,9 @@ async def available_sessions(
         )
         .order_by(Event.start_datetime)
     )
+    if show_date is not None:
+        query = query.where(_event_local_date() == show_date)
+    rows = await db.execute(query)
     return [dict(row._mapping) for row in rows.all()]
 
 

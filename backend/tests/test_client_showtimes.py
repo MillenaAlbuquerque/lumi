@@ -58,6 +58,18 @@ async def test_client_selection_flow_uses_only_future_related_showtimes(
         f"/api/client/showtimes/movies/{available_movie.id}/cinemas/{cinema.id}/sessions",
         headers=headers,
     )
+    sessions_on_date = await client.get(
+        f"/api/client/showtimes/movies/{available_movie.id}/cinemas/{cinema.id}/sessions",
+        params={"date": future.start_datetime.date().isoformat()},
+        headers=headers,
+    )
+    sessions_on_another_date = await client.get(
+        f"/api/client/showtimes/movies/{available_movie.id}/cinemas/{cinema.id}/sessions",
+        params={"date": (future.start_datetime.date() + timedelta(days=1)).isoformat()},
+        headers=headers,
+    )
+    assert [item["id"] for item in sessions_on_date.json()] == [future.id]
+    assert sessions_on_another_date.json() == []
     assert [item["id"] for item in sessions.json()] == [future.id]
     assert sessions.json()[0]["cinema_id"] == cinema.id
 

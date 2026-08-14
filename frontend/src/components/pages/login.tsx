@@ -1,12 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { LogIn, UserPlus, Mail, Lock, User, ArrowLeft, ArrowRight, Building2, FileText, MapPin, Phone } from 'lucide-react'
+import { LogIn, UserPlus, Mail, Lock, User, ArrowLeft, ArrowRight, Building2, FileText, LoaderCircle, MapPin, Phone } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { useAuth } from '../../contexts/AuthContext'
-import logoLumi from '../../assets/images/lumi-logo.png'
+import { cepService, type CepAddress } from '../../services/cepService'
 import pipoca from '../../assets/images/pipocaLogin.jpg'
 
 function LoginPage() {
@@ -30,7 +30,42 @@ function LoginPage() {
   const [cinemaName, setCinemaName] = useState('')
   const [cinemaCnpj, setCinemaCnpj] = useState('')
   const [cinemaPhone, setCinemaPhone] = useState('')
-  const [cinemaAddress, setCinemaAddress] = useState('')
+  const [cinemaCep, setCinemaCep] = useState('')
+  const [cinemaNumber, setCinemaNumber] = useState('')
+  const [cepAddress, setCepAddress] = useState<CepAddress | null>(null)
+  const [cepLoading, setCepLoading] = useState(false)
+  const [cepError, setCepError] = useState('')
+
+  const cinemaAddress = cepAddress && cinemaNumber.trim()
+    ? [cepAddress.logradouro, cinemaNumber.trim(), cepAddress.bairro, `${cepAddress.localidade} - ${cepAddress.uf}`, `CEP ${cepAddress.cep}`].filter(Boolean).join(', ')
+    : ''
+
+  useEffect(() => {
+    const digits = cinemaCep.replace(/\D/g, '')
+    setCepAddress(null)
+    setCepError('')
+    if (digits.length !== 8) {
+      setCepLoading(false)
+      return
+    }
+
+    const controller = new AbortController()
+    const timer = window.setTimeout(async () => {
+      setCepLoading(true)
+      try {
+        setCepAddress(await cepService.find(digits, controller.signal))
+      } catch (error) {
+        if (!controller.signal.aborted) setCepError(error instanceof Error ? error.message : 'Não foi possível consultar o CEP.')
+      } finally {
+        if (!controller.signal.aborted) setCepLoading(false)
+      }
+    }, 350)
+
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [cinemaCep])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -96,6 +131,12 @@ function LoginPage() {
   const handleCinemaSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setSignupError('')
+
+    if (!cepAddress || !cinemaAddress) {
+      setSignupError('Consulte um CEP válido e informe o número do cinema.')
+      return
+    }
+
     setSignupLoading(true)
 
     try {
@@ -122,7 +163,6 @@ function LoginPage() {
             <ArrowLeft className="h-6 w-6 font-bold" />
           </button>
         </div>
-        <img src={logoLumi} alt="Lumi" className="absolute left-14 top-0 z-10 h-30 w-auto sm:left-18 sm:top-1 sm:h-34 lg:h-45" />
         <div className="absolute bottom-7 left-6 right-6 z-10 text-white sm:bottom-10 sm:left-10 lg:bottom-14 lg:left-14 lg:right-14 lg:max-w-md">
           <h2 className="mb-2 text-3xl font-semibold leading-tight sm:text-4xl lg:mb-4 lg:text-5xl">
             <span className="text-[var(--color-primary)]">
@@ -373,15 +413,41 @@ function LoginPage() {
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <label htmlFor="cinema-address" className="text-sm font-medium text-mauve-12">Endereço completo</label>
-                        <div className="relative">
-                          <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mauve-12" />
-                          <Input id="cinema-address" value={cinemaAddress} onChange={(e) => setCinemaAddress(e.target.value)} placeholder="Rua, número, bairro e cidade" className="pl-10 bg-white/50 text-mauve-12" required />
+                      <div className="grid grid-cols-[minmax(0,1fr)_7rem] gap-3">
+                        <div className="space-y-2">
+                          <label htmlFor="cinema-cep" className="text-sm font-medium text-mauve-12">CEP</label>
+                          <div className="relative">
+                            <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mauve-12" />
+                            <Input
+                              id="cinema-cep"
+                              inputMode="numeric"
+                              value={cinemaCep}
+                              onChange={(event) => {
+                                const digits = event.target.value.replace(/\D/g, '').slice(0, 8)
+                                setCinemaCep(digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits)
+                              }}
+                              placeholder="00000-000"
+                              className="bg-white/50 pl-10 text-mauve-12"
+                              required
+                            />
+                            {cepLoading && <LoaderCircle className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[var(--color-primary-dark)]" />}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <label htmlFor="cinema-number" className="text-sm font-medium text-mauve-12">Número</label>
+                          <Input id="cinema-number" value={cinemaNumber} onChange={(event) => setCinemaNumber(event.target.value)} placeholder="123" className="bg-white/50 text-mauve-12" required maxLength={20} />
                         </div>
                       </div>
 
-                      <Button type="submit" className="w-full" size="lg" disabled={signupLoading}>
+                      {cepError && <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600">{cepError}</p>}
+                      {cepAddress && (
+                        <div className="rounded-lg border border-[var(--color-primary-dark)]/25 bg-white/40 px-3 py-2 text-sm text-mauve-11">
+                          <p className="flex items-start gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-primary-dark)]" /><span>{cinemaAddress || [cepAddress.logradouro, cepAddress.bairro, `${cepAddress.localidade} - ${cepAddress.uf}`].filter(Boolean).join(', ')}</span></p>
+                          {!cinemaNumber.trim() && <p className="mt-1 pl-6 text-xs text-mauve-10">Agora informe o número.</p>}
+                        </div>
+                      )}
+
+                      <Button type="submit" className="w-full" size="lg" disabled={signupLoading || cepLoading || !cepAddress || !cinemaNumber.trim()}>
                         {signupLoading ? 'Cadastrando...' : 'Finalizar cadastro'}
                       </Button>
                     </form>

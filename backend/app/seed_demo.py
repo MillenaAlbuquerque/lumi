@@ -26,6 +26,8 @@ from app.models.user import User
 
 DEMO_PASSWORD = "LumiDemo123!"
 SAO_PAULO = ZoneInfo("America/Sao_Paulo")
+DEMO_SESSION_YEAR = 2026
+LEGACY_DEMO_SESSION_YEAR = 2030
 
 USERS = (
     ("Marina Costa", "organizador.paulista@lumi.demo", UserRole.ORGANIZER),
@@ -41,42 +43,42 @@ MOVIES = (
         "description": "Paul Atreides se une a Chani e aos Fremen enquanto busca vingança e tenta impedir um futuro terrível.",
         "rating": "14", "release_date": date(2024, 2, 29),
         "poster_url": "https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg",
-        "backdrop_url": "https://image.tmdb.org/t/p/original/xOMo8BRK7PfcJv9JCnx7s5hj0PX.jpg",
+        "backdrop_url": "https://image.tmdb.org/t/p/w1280/eZ239CUp1d6OryZEBPnO2n87gMG.jpg",
     },
     {
         "tmdb_id": 1022789, "title": "Divertida Mente 2", "duration_minutes": 96,
         "description": "Riley entra na adolescência e novas emoções chegam para transformar o centro de controle de sua mente.",
         "rating": "L", "release_date": date(2024, 6, 20),
         "poster_url": "https://image.tmdb.org/t/p/w500/vpnVM9B6NMmQpWeZvzLvDESb2QY.jpg",
-        "backdrop_url": "https://image.tmdb.org/t/p/original/6cCb2Q2V0nq8T9oWJZx3K7IY8aE.jpg",
+        "backdrop_url": "https://image.tmdb.org/t/p/w1280/p5ozvmdgsmbWe0H8Xk7Rc8SCwAB.jpg",
     },
     {
         "tmdb_id": 653346, "title": "Planeta dos Macacos: O Reinado", "duration_minutes": 145,
         "description": "Gerações após César, um jovem macaco inicia uma jornada que definirá o futuro de macacos e humanos.",
         "rating": "14", "release_date": date(2024, 5, 9),
         "poster_url": "https://image.tmdb.org/t/p/w500/gKkl37BQuKTanygYQG1pyYgLVgf.jpg",
-        "backdrop_url": "https://image.tmdb.org/t/p/original/fqv8v6AycXKsivp1T5yKtLbGxnd.jpg",
+        "backdrop_url": "https://image.tmdb.org/t/p/w1280/fypydCipcWDKDTTCoPucBsdGYXW.jpg",
     },
     {
         "tmdb_id": 786892, "title": "Furiosa: Uma Saga Mad Max", "duration_minutes": 149,
         "description": "A jovem Furiosa enfrenta um mundo em colapso para encontrar o caminho de volta para casa.",
         "rating": "16", "release_date": date(2024, 5, 23),
         "poster_url": "https://image.tmdb.org/t/p/w500/iADOJ8Zymht2JPMoy3R7xceZprc.jpg",
-        "backdrop_url": "https://image.tmdb.org/t/p/original/wNAhuOZ3Zf84jCIlrcI6JhgmY5q.jpg",
+        "backdrop_url": "https://image.tmdb.org/t/p/w1280/raph7qjAGTMXaIjVxt6ZDSXRzUr.jpg",
     },
     {
         "tmdb_id": 823464, "title": "Godzilla e Kong: O Novo Império", "duration_minutes": 115,
         "description": "Godzilla e Kong enfrentam uma ameaça colossal escondida nas profundezas do planeta.",
         "rating": "12", "release_date": date(2024, 3, 28),
         "poster_url": "https://image.tmdb.org/t/p/w500/z1p34vh7dEOnLDmyCrlUVLuoDzd.jpg",
-        "backdrop_url": "https://image.tmdb.org/t/p/original/j3Z3XktmWB1VhsS8iXNcrR86PXi.jpg",
+        "backdrop_url": "https://image.tmdb.org/t/p/w1280/gvLG3Fnznkxl4SmYfcK8gUuqxM8.jpg",
     },
     {
         "tmdb_id": 533535, "title": "Deadpool & Wolverine", "duration_minutes": 128,
         "description": "Deadpool recruta Wolverine para uma missão que pode mudar para sempre a história de seu universo.",
         "rating": "18", "release_date": date(2024, 7, 25),
         "poster_url": "https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg",
-        "backdrop_url": "https://image.tmdb.org/t/p/original/yDHYTfA3R0jFYba16jBB1ef8oIt.jpg",
+        "backdrop_url": "https://image.tmdb.org/t/p/w1280/by8z9Fe8y7p4jo2YlW2SZDnptyT.jpg",
     },
 )
 
@@ -140,8 +142,12 @@ async def upsert_movie(session, data: dict) -> Movie:
     return movie
 
 
-async def upsert_event(session, organizer: User, room: Room, movie: Movie, start: datetime, price: str, projection: str) -> None:
+async def upsert_event(session, organizer: User, room: Room, movie: Movie, start: datetime, price: str, projection: str, legacy_start: datetime | None = None) -> None:
     event = await session.scalar(select(Event).where(Event.room_id == room.id, Event.movie_id == movie.id, Event.start_datetime == start))
+    if event is None and legacy_start is not None:
+        event = await session.scalar(select(Event).where(Event.room_id == room.id, Event.movie_id == movie.id, Event.start_datetime == legacy_start))
+        if event is not None:
+            event.start_datetime = start
     if event is None:
         session.add(Event(room_id=room.id, movie_id=movie.id, organizer_id=organizer.id, start_datetime=start, price=Decimal(price), projection_type=projection))
     else:
@@ -186,7 +192,16 @@ async def seed() -> None:
             for room_key, tmdb_id, day, hour, minute, price, projection in schedules:
                 room = rooms[room_key]
                 organizer = users["organizador.paulista@lumi.demo"] if room.cinema_id == paulista.id else users["organizador.guarulhos@lumi.demo"]
-                await upsert_event(session, organizer, room, movies[tmdb_id], datetime(2030, 10, day, hour, minute, tzinfo=SAO_PAULO), price, projection)
+                await upsert_event(
+                    session,
+                    organizer,
+                    room,
+                    movies[tmdb_id],
+                    datetime(DEMO_SESSION_YEAR, 10, day, hour, minute, tzinfo=SAO_PAULO),
+                    price,
+                    projection,
+                    legacy_start=datetime(LEGACY_DEMO_SESSION_YEAR, 10, day, hour, minute, tzinfo=SAO_PAULO),
+                )
 
         counts = {
             "users": await session.scalar(select(func.count()).select_from(User)),

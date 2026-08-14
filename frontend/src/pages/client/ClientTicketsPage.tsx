@@ -5,8 +5,26 @@ import Header from '../../components/layout/Header'
 import { Modal } from '../../components/ui/modal'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../../components/ui/alert-dialog'
 import { ticketService, type ClientTicket } from '../../services/ticketService'
+import { getTmdbImageUrl } from '../../lib/tmdb-image'
 
 const statusLabels = { issued: 'Válido', used: 'Utilizado', cancelled: 'Cancelado' } as const
+
+function TicketArtwork({ ticket }: { ticket: ClientTicket }) {
+  const [backdropLoaded, setBackdropLoaded] = useState(false)
+  const [backdropFailed, setBackdropFailed] = useState(false)
+  const [posterFailed, setPosterFailed] = useState(false)
+  const backdropUrl = getTmdbImageUrl(ticket.backdrop_url, 'w1280')
+  const posterUrl = getTmdbImageUrl(ticket.poster_url, 'w500')
+  const unavailable = (!posterUrl || posterFailed) && (!backdropUrl || backdropFailed)
+  const imageStateClass = ticket.status !== 'issued' ? 'grayscale' : ''
+
+  if (unavailable) return <div className="flex h-full items-center justify-center"><Clapperboard className="h-10 w-10 text-white/25" /></div>
+
+  return <>
+    {posterUrl && !posterFailed && <img src={posterUrl} alt="" aria-hidden="true" onError={() => setPosterFailed(true)} className={`absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105 ${imageStateClass}`} />}
+    {backdropUrl && !backdropFailed && <img src={backdropUrl} alt={`Imagem de ${ticket.movie_title}`} onLoad={() => setBackdropLoaded(true)} onError={() => setBackdropFailed(true)} className={`absolute inset-0 h-full w-full object-cover transition-[opacity,transform,filter] duration-700 group-hover:scale-105 ${backdropLoaded ? 'opacity-100' : 'opacity-0'} ${imageStateClass}`} />}
+  </>
+}
 
 function ClientTicketsPage() {
   const [tickets, setTickets] = useState<ClientTicket[]>([])
@@ -64,7 +82,7 @@ function ClientTicketsPage() {
           return <article key={ticket.id} className="group overflow-hidden rounded-2xl  bg-slate-900 shadow-xl transition duration-300 hover:-translate-y-1 ">
             <button type="button" onClick={() => setSelectedTicket(ticket)} className="block w-full cursor-pointer text-left" aria-label={`Abrir ingresso de ${ticket.movie_title}`}>
               <div className="relative h-32 overflow-hidden bg-black/30 sm:h-56">
-                {ticket.backdrop_url || ticket.poster_url ? <img src={ticket.backdrop_url || ticket.poster_url || ''} alt={`Imagem de ${ticket.movie_title}`} className={`h-full w-full object-cover transition duration-500 group-hover:scale-105 ${ticket.status !== 'issued' ? 'grayscale' : ''}`} /> : <div className="flex h-full items-center justify-center"><Clapperboard className="h-10 w-10 text-white/25" /></div>}
+                <TicketArtwork ticket={ticket} />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
                 <span className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider  ${ticket.status === 'issued' ? 'bg-[var(--color-surface)] text-emerald-400' : ticket.status === 'used' ? 'bg-[var(--color-surface)] text-slate-600' : 'bg-[var(--color-surface)] text-red-400'}`}>{statusLabels[ticket.status]}</span>
                 <h2 className="absolute bottom-3 left-4 right-4 line-clamp-2 text-lg font-semibold leading-tight">{ticket.movie_title}</h2>

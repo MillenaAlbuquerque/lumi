@@ -56,8 +56,8 @@ function Header() {
     return () => document.removeEventListener('mousedown', closeProfile)
   }, [])
 
-  const linkClass = `border-b-2 border-transparent px-4 py-2 text-base font-medium transition-colors hover:border-[var(--color-primary-dark)] ${isScrolled ? 'text-white' : 'text-[var(--color-primary-dark)]'}`
-  const mobileLinkClass = 'whitespace-nowrap border-b-2 border-transparent px-4 py-2 text-sm font-medium text-[var(--color-primary-dark)] hover:border-[var(--color-primary-dark)]'
+  const linkClass = `border-b-2 border-transparent px-4 py-1.5 text-base font-medium transition-colors hover:border-[var(--color-primary-dark)] ${isScrolled ? 'text-white' : 'text-[var(--color-primary-dark)]'}`
+  const mobileLinkClass = 'whitespace-nowrap border-b-2 border-transparent px-4 py-1.5 text-sm font-medium text-[var(--color-primary-dark)] hover:border-[var(--color-primary-dark)]'
 
   const roleLink = user?.role === 'CLIENT'
     ? { label: 'Meus ingressos', to: '/cliente/ingressos' }
@@ -69,7 +69,7 @@ function Header() {
 
   return (
     <header className={`fixed top-0 z-30 w-full transition-all duration-300 ${isScrolled ? 'bg-[var(--color-primary)] shadow-lg' : 'bg-transparent'}`}>
-      <div className="relative mx-auto flex h-20 max-w-7xl items-center justify-between gap-6 px-2 sm:h-24 md:h-28">
+      <div className="relative mx-auto flex h-16 max-w-7xl items-center justify-between gap-6 px-2 sm:h-18 md:h-20">
         <Link to="/" className="flex w-fit items-center gap-3" aria-label="Ir para o início">
           <img src={logoLumi} alt="Lumi" className="h-20 w-auto sm:h-24 md:h-28" />
         </Link>
@@ -104,7 +104,7 @@ function Header() {
         </div>
       </div>
 
-      <nav aria-label="Navegação mobile" className="border-t border-white/20 px-4 py-1 md:hidden">
+      <nav aria-label="Navegação mobile" className="border-t border-white/20 px-4 py-0.5 md:hidden">
         <div className="mx-auto flex max-w-7xl justify-center gap-2 overflow-x-auto">
           {navigationItems.map((item) => <Link key={item.label} to={item.to} onClick={handleMoviesClick} className={mobileLinkClass}>{item.label}</Link>)}
           <Link to="/cinemas" className={mobileLinkClass}>Cinemas</Link>

@@ -38,8 +38,8 @@ export const clientShowtimeService = {
   listAvailableCinemas: () => get<AvailableCinema[]>('/cinemas'),
   listCinemaMovies: (cinemaId: number) => get<AvailableMovie[]>(`/cinemas/${cinemaId}/movies`),
   listMovies: (date?: string) => get<AvailableMovie[]>(date ? `/movies?date=${encodeURIComponent(date)}` : '/movies'),
-  listCinemas: (movieId: number) => get<AvailableCinema[]>(`/movies/${movieId}/cinemas`),
-  listSessions: (movieId: number, cinemaId: number) => get<AvailableSession[]>(`/movies/${movieId}/cinemas/${cinemaId}/sessions`),
+  listCinemas: (movieId: number, date?: string) => get<AvailableCinema[]>(`/movies/${movieId}/cinemas${date ? `?date=${encodeURIComponent(date)}` : ''}`),
+  listSessions: (movieId: number, cinemaId: number, date?: string) => get<AvailableSession[]>(`/movies/${movieId}/cinemas/${cinemaId}/sessions${date ? `?date=${encodeURIComponent(date)}` : ''}`),
   listSessionSeats: (sessionId: number) => get<SessionSeatAvailability>(`/sessions/${sessionId}/seats`),
   createSeatHold: async (sessionId: number, seatIds: number[]): Promise<SeatHold> => {
     const token = authService.getToken()

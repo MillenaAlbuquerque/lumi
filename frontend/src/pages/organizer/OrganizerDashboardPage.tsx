@@ -30,7 +30,7 @@ function OrganizerDashboardPage() {
           </div>
         </div>
 
-        <Tabs defaultValue="rooms" variant="line" className="w-full">
+        <Tabs defaultValue="tickets" variant="line" className="w-full">
           <TabsList className="mb-7 w-full overflow-x-auto">
             <TabsTrigger value="tickets"><TicketCheck className="h-4 w-4" />Dashboard</TabsTrigger>
             <TabsTrigger value="sessions"><TvMinimalPlay className="h-4 w-4" />Sessões</TabsTrigger>

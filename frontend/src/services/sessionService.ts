@@ -40,7 +40,7 @@ export const sessionService = {
         duration_minutes: detail.runtime || 1,
         release_date: detail.release_date || null,
         poster_url: detail.poster_path ? `https://image.tmdb.org/t/p/w500${detail.poster_path}` : null,
-        backdrop_url: detail.backdrop_path ? `https://image.tmdb.org/t/p/original${detail.backdrop_path}` : null,
+        backdrop_url: detail.backdrop_path ? `https://image.tmdb.org/t/p/w1280${detail.backdrop_path}` : null,
       }),
     })
   },
