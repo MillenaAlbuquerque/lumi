@@ -15,7 +15,7 @@ export interface Movie {
 
 export const movieService = {
   async listMovies(): Promise<Movie[]> {
-    return api.get<Movie[]>('/api/movies')
+    return api.get<Movie[]>('/movies')
   },
 }
 
