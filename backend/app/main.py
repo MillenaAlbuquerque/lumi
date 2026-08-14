@@ -17,6 +17,16 @@ from app.api.routes import router
 
 app = FastAPI(title="Lumi API")
 
+
+@app.get("/", tags=["Status"])
+async def root() -> dict[str, str]:
+    return {
+        "name": "Lumi API",
+        "status": "online",
+        "health": "/api/health",
+        "docs": "/docs",
+    }
+
 # Configuração CORS
 app.add_middleware(
     CORSMiddleware,

@@ -1,6 +1,5 @@
 import { authService } from './authService'
-
-const API_BASE_URL = 'http://localhost:8000/api'
+import { API_BASE_URL } from './config'
 
 export interface OrganizerCinema {
   id: number

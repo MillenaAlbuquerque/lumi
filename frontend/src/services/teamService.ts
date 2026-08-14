@@ -1,6 +1,5 @@
 import { authService, type UserRole } from './authService'
-
-const API_BASE_URL = 'http://localhost:8000/api'
+import { API_BASE_URL } from './config'
 
 export interface TeamMember { id: number; name: string; email: string; role: UserRole; cinema_id: number }
 export interface CreateTeamMemberData { name: string; email: string; password: string }

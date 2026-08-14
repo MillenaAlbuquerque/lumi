@@ -1,6 +1,7 @@
 import { authService } from './authService'
+import { API_BASE_URL as API_ROOT_URL } from './config'
 
-const API_BASE_URL = 'http://localhost:8000/api/client/showtimes'
+const API_BASE_URL = `${API_ROOT_URL}/client/showtimes`
 const SEAT_UPDATES_URL = API_BASE_URL.replace(/^http/, 'ws')
 
 export interface AvailableMovie { id: number; title: string; poster_url: string | null; duration_minutes: number; description: string | null; rating: string | null; release_date: string | null; backdrop_url: string | null }

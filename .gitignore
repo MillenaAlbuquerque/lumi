@@ -28,7 +28,9 @@ env/
 .mypy_cache/
 .ruff_cache/
 .coverage
+.coverage.*
 htmlcov/
+test-results/
 
 # Local databases
 *.db
@@ -41,6 +43,11 @@ logs/
 *.tmp
 *.temp
 *.local
+
+# Local database backups and exports
+backups/
+*.dump
+*.sql.gz
 
 # Editors and operating systems
 .vscode/*

@@ -1,8 +1,7 @@
 import { authService } from './authService'
 import type { Movie } from './movieService'
 import type { Room } from './roomService'
-
-const API_BASE_URL = 'http://localhost:8000/api'
+import { API_BASE_URL } from './config'
 
 export interface CinemaSession {
   id: number; movie_id: number; room_id: number; start_datetime: string; price: number; projection_type: '2D' | '3D'; movie: Movie; room: Room
