@@ -33,11 +33,12 @@ async function authorizedRequest<T>(endpoint: string, init?: RequestInit): Promi
     throw new Error(error?.detail || 'Não foi possível concluir a operação')
   }
 
-  return response.json()
+  return response.status === 204 ? undefined as T : response.json()
 }
 
 export const roomService = {
   list: () => authorizedRequest<Room[]>('/rooms'),
   create: (data: CreateRoomData) =>
     authorizedRequest<Room>('/rooms', { method: 'POST', body: JSON.stringify(data) }),
+  delete: (roomId: number) => authorizedRequest<void>(`/rooms/${roomId}`, { method: 'DELETE' }),
 }

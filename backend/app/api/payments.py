@@ -89,17 +89,17 @@ async def _reconcile_payment(
     was_cancelled = payment.reservation.status == ReservationStatus.cancelled
     order_id = order.get("id")
     if expected_order_id and str(order_id) != expected_order_id:
-        raise HTTPException(status_code=409, detail="Mercado Pago order does not match")
+        raise HTTPException(status_code=409, detail="")
 
     external_reference = order.get("external_reference")
     if external_reference and external_reference != f"lumi-payment-{payment.id}":
-        raise HTTPException(status_code=409, detail="Mercado Pago reference does not match")
+        raise HTTPException(status_code=409, detail="")
 
     order_amount = order.get("total_amount")
     if order_amount is not None and Decimal(str(order_amount)) != payment.amount:
         payment.status_detail = "provider_amount_mismatch"
         await db.commit()
-        raise HTTPException(status_code=409, detail="Mercado Pago amount does not match")
+        raise HTTPException(status_code=409, detail="")
 
     provider_status, provider_payment_id, status_detail = extract_order_payment(order)
     payment.provider_order_id = str(order_id) if order_id is not None else payment.provider_order_id
@@ -173,7 +173,7 @@ async def create_payment(
     )
     if existing is not None:
         if existing.reservation.user_id != current_user.id:
-            raise HTTPException(status_code=409, detail="Idempotency key is already in use")
+            raise HTTPException(status_code=409, detail="Pagamento já existe para esta reserva")
         if existing.provider_order_id is not None:
             return _payment_read(existing)
         payment = existing
@@ -185,7 +185,7 @@ async def create_payment(
             .with_for_update()
         )
         if event is None:
-            raise HTTPException(status_code=404, detail="Session is unavailable")
+            raise HTTPException(status_code=404, detail="Sessão não encontrada ou já começou")
 
         seats = list(
             (
@@ -198,7 +198,7 @@ async def create_payment(
             ).all()
         )
         if len(seats) != len(payload.seat_ids):
-            raise HTTPException(status_code=409, detail="One or more seats do not belong to this session")
+            raise HTTPException(status_code=409, detail="Um ou mais assentos não pertencem a esta sessão")
 
         occupied_rows = (await db.execute(
             select(
@@ -232,12 +232,12 @@ async def create_payment(
                 )
             )
             if not valid_hold:
-                raise HTTPException(status_code=409, detail="One or more seats are no longer available")
+                raise HTTPException(status_code=409, detail="Um ou mais assentos já estão ocupados ou não pertencem a esta reserva")
             reservation = await db.get(Reservation, payload.hold_id, with_for_update=True)
             reservation.hold_expires_at = None
         else:
             if payload.hold_id is not None:
-                raise HTTPException(status_code=409, detail="Seat hold has expired")
+                raise HTTPException(status_code=409, detail="")
             reservation = Reservation(
                 user_id=current_user.id,
                 event_id=event.id,
@@ -270,7 +270,7 @@ async def create_payment(
             )
             if duplicate is not None and duplicate.reservation.user_id == current_user.id:
                 return _payment_read(duplicate)
-            raise HTTPException(status_code=409, detail="Seats are no longer available") from exc
+            raise HTTPException(status_code=409, detail="Pagamento já existe") from exc
         payment = await _loaded_payment(db, payment.id)
 
     try:
@@ -308,7 +308,7 @@ async def get_payment(
 ) -> dict:
     payment = await _loaded_payment(db, payment_id)
     if payment.reservation.user_id != current_user.id:
-        raise HTTPException(status_code=404, detail="Payment not found")
+        raise HTTPException(status_code=404, detail="Pagamento não encontrado")
     return _payment_read(payment)
 
 
@@ -322,7 +322,7 @@ async def mercado_pago_webhook(
     mercado_pago: MercadoPagoClient = Depends(get_mercado_pago_client),
 ) -> dict[str, str]:
     if payload.live_mode:
-        raise HTTPException(status_code=400, detail="Production notifications are disabled")
+        raise HTTPException(status_code=400, detail="")
     if payload.type != "order":
         return {"status": "ignored"}
     order_id = data_id or payload.data.get("id")

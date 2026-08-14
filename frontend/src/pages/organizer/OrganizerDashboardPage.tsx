@@ -4,6 +4,7 @@ import RoomManager from '../../components/features/organizer/rooms/RoomManager'
 import TeamManager from '../../components/features/organizer/team/TeamManager'
 import SessionManager from '../../components/features/organizer/sessions/SessionManager'
 import TicketManager from '../../components/features/organizer/tickets/TicketManager'
+import CinemaSettings from '../../components/features/organizer/settings/CinemaSettings'
 import Header from '../../components/layout/Header'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs'
 import { organizerService } from '../../services/organizerService'
@@ -41,7 +42,7 @@ function OrganizerDashboardPage() {
           <TabsContent value="sessions"><SessionManager /></TabsContent>
           <TabsContent value="rooms"><RoomManager /></TabsContent>          
           <TabsContent value="team"><TeamManager /></TabsContent>
-          <TabsContent value="settings"></TabsContent>
+          <TabsContent value="settings"><CinemaSettings onCinemaUpdated={(cinema) => setCinemaName(cinema.name)} /></TabsContent>
         </Tabs>
       </main>
     </div>

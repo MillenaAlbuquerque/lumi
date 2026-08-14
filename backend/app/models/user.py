@@ -29,3 +29,4 @@ class User(Base):
     workplace_cinemas: Mapped[list["Cinema"]] = relationship(
         secondary="cinema_gatekeepers", back_populates="gatekeepers"
     )
+    validated_tickets: Mapped[list["Ticket"]] = relationship(back_populates="used_by")

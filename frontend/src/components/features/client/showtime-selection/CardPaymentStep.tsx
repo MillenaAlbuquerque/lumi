@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from 'react'
+import { createPortal } from 'react-dom'
 import { CheckCircle2, Clock3, CreditCard, XCircle } from 'lucide-react'
 import { paymentService, type PaymentResult } from '../../../../services/paymentService'
 import { Button } from '../../../ui/button'
+import { Alert, AlertDescription, AlertTitle } from '../../../ui/alert'
 import CardPayment from './MercadoPagoCardBrick'
 
 const publicKey = import.meta.env.VITE_MERCADO_PAGO_PUBLIC_KEY_TEST as string | undefined
@@ -27,6 +29,7 @@ function CardPaymentStep({ sessionId, holdId, holdExpiresAt, seatIds, estimatedT
   const [idempotencyKey] = useState(createIdempotencyKey)
   const [result, setResult] = useState<PaymentResult | null>(null)
   const [error, setError] = useState('')
+  const [showConfirmationAlert, setShowConfirmationAlert] = useState(false)
   const brickKey = 0
   const [remainingSeconds, setRemainingSeconds] = useState(() => Math.max(0, Math.ceil((new Date(holdExpiresAt).getTime() - Date.now()) / 1000)))
   const initialization = useMemo(() => ({ amount: estimatedTotal, payer: { email: 'test@testuser.com' } }), [estimatedTotal])
@@ -42,6 +45,12 @@ function CardPaymentStep({ sessionId, holdId, holdExpiresAt, seatIds, estimatedT
     const timer = window.setInterval(update, 1000)
     return () => window.clearInterval(timer)
   }, [holdExpiresAt])
+
+  useEffect(() => {
+    if (!showConfirmationAlert) return
+    const timer = window.setTimeout(() => setShowConfirmationAlert(false), 5000)
+    return () => window.clearTimeout(timer)
+  }, [showConfirmationAlert])
 
   const submitPayment = useCallback(async (formData: CardFormData) => {
     setError('')
@@ -65,6 +74,7 @@ function CardPaymentStep({ sessionId, holdId, holdExpiresAt, seatIds, estimatedT
         },
       }, idempotencyKey)
       setResult(payment)
+      if (payment.reservation_status === 'confirmed') setShowConfirmationAlert(true)
       paymentResultCallback.current(payment.reservation_status)
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Não foi possível processar o pagamento.')
@@ -76,7 +86,7 @@ function CardPaymentStep({ sessionId, holdId, holdExpiresAt, seatIds, estimatedT
   if (result) {
     const approved = result.reservation_status === 'confirmed'
     const declined = result.reservation_status === 'cancelled'
-    return <div className="mx-auto max-w-xl rounded-2xl p-2 text-center text-white">
+    return <><div className="mx-auto max-w-xl rounded-2xl p-2 text-center text-white">
       {approved ? <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-400" /> : declined ? <XCircle className="mx-auto h-12 w-12 text-red-400" /> : <Clock3 className="mx-auto h-12 w-12 text-amber-400" />}
       <h3 className="mt-4 text-xl font-semibold">{approved ? 'Pagamento confirmado!' : declined ? 'Pagamento recusado' : 'Pagamento em análise'}</h3>
       <p className="mt-2 text-sm text-white/60">{approved ? 'Sua reserva foi confirmada.' : declined ? 'A reserva foi cancelada e os assentos foram liberados.' : 'A reserva continuará pendente até a confirmação do Mercado Pago.'}</p>
@@ -88,7 +98,7 @@ function CardPaymentStep({ sessionId, holdId, holdExpiresAt, seatIds, estimatedT
       </div>
       {declined && <Button type="button" onClick={onBack} className="mt-5 w-full">Escolher assentos novamente</Button>}
       {!approved && !declined && <p className="mt-5 text-xs text-white/45">A confirmação será recebida pelo webhook. Não tente pagar novamente enquanto estiver pendente.</p>}
-    </div>
+    </div>{showConfirmationAlert && createPortal(<Alert variant="success" className="fixed bottom-5 right-5 z-[100] w-[calc(100%-2rem)] max-w-sm animate-[modal-content-enter_320ms_cubic-bezier(0.22,1,0.36,1)_both] shadow-2xl shadow-black/40"><CheckCircle2 className="h-5 w-5 text-emerald-400" /><AlertTitle>Pagamento confirmado!</AlertTitle><AlertDescription>Sua compra foi aprovada e os ingressos já estão disponíveis em Meus ingressos.</AlertDescription></Alert>, document.body)}</>
   }
 
   return <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">

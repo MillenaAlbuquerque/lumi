@@ -39,7 +39,7 @@ function MovieCard({ title, posterPath, duration, onClick }: MovieCardProps) {
             {duration && <span>{duration} min</span>}
           </div>
         </div>
-        <div className="absolute inset-0 flex translate-y-3 items-center justify-center gap-2 font-semibold text-[var(--color-primary)] opacity-0 transition-all duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100">
+        <div className="absolute inset-0 flex translate-y-3 items-center justify-center gap-2 font-medium text-[var(--color-primary)] opacity-0 transition-all duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100">
           <CalendarDays className="h-4 w-4 transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110" />
           <span>Ver sessões</span>
         </div>

@@ -6,6 +6,7 @@ import { roomService, type Room } from '../../../../services/roomService'
 import { Button } from '../../../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../ui/card'
 import { Input } from '../../../ui/input'
+import { Modal } from '../../../ui/modal'
 
 const selectClass = 'flex h-10 w-full rounded-md border border-[var(--color-primary)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-dark)]'
 
@@ -28,6 +29,10 @@ function SessionManager() {
   const [query, setQuery] = useState('')
   const [searchResults, setSearchResults] = useState<TmdbMovie[]>([])
   const [isSearching, setIsSearching] = useState(false)
+  const [catalogOpen, setCatalogOpen] = useState(false)
+  const [addingMovieId, setAddingMovieId] = useState<number | null>(null)
+  const [catalogError, setCatalogError] = useState('')
+  const [hasSearched, setHasSearched] = useState(false)
 
   const filteredRooms = rooms.filter((room) => room.name.toLocaleLowerCase('pt-BR').includes(roomQuery.trim().toLocaleLowerCase('pt-BR')))
   const filteredMovies = movies.filter((movie) => movie.title.toLocaleLowerCase('pt-BR').includes(movieQuery.trim().toLocaleLowerCase('pt-BR')))
@@ -52,18 +57,20 @@ function SessionManager() {
   }
 
   const searchMovies = async (event: React.FormEvent) => {
-    event.preventDefault(); setIsSearching(true); setError('')
-    try { setSearchResults((await sessionService.searchTmdb(query)).results.slice(0, 6)) }
-    catch (requestError) { setError(requestError instanceof Error ? requestError.message : 'Erro na busca') }
+    event.preventDefault(); setIsSearching(true); setCatalogError(''); setHasSearched(false)
+    try { setSearchResults((await sessionService.searchTmdb(query)).results.slice(0, 6)); setHasSearched(true) }
+    catch (requestError) { setCatalogError(requestError instanceof Error ? requestError.message : 'Erro na busca') }
     finally { setIsSearching(false) }
   }
 
   const addMovie = async (tmdbId: number) => {
+    setAddingMovieId(tmdbId); setCatalogError('')
     try {
       const movie = await sessionService.addTmdbMovie(tmdbId)
-      setMovies((current) => [...current, movie].sort((a, b) => a.title.localeCompare(b.title)))
-      setMovieId(String(movie.id)); setMovieQuery(movie.title); setSearchResults([]); setQuery('')
-    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : 'Erro ao adicionar filme') }
+      setMovies((current) => current.some((item) => item.id === movie.id) ? current : [...current, movie].sort((a, b) => a.title.localeCompare(b.title)))
+      setMovieId(String(movie.id)); setMovieQuery(movie.title); setSearchResults([]); setQuery(''); setCatalogOpen(false)
+    } catch (requestError) { setCatalogError(requestError instanceof Error ? requestError.message : 'Erro ao adicionar filme') }
+    finally { setAddingMovieId(null) }
   }
 
   return <div className="space-y-8">
@@ -123,6 +130,7 @@ function SessionManager() {
           </div>}
           <input type="hidden" name="movie_id" value={movieId} required />
         </div>
+        <Button type="button" variant="outline2" className="w-full" onClick={() => { setCatalogOpen(true); setCatalogError('') }}><Plus className="h-4 w-4" />Adicionar filme ao catálogo</Button>
         <div className="grid grid-cols-2 gap-3">
           <Input type="date" value={date} className="border border-[var(--color-primary)] text-slate-700 " onChange={(event) => setDate(event.target.value)} />
           <Input type="time" value={time} className="border border-[var(--color-primary)] text-slate-700" onChange={(event) => setTime(event.target.value)} />
@@ -131,22 +139,26 @@ function SessionManager() {
         {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}<Button className="w-full" disabled={isCreating}>{isCreating ? 'Criando...' : 'Criar sessão'}</Button>
       </form></CardContent></Card>
     </div>
-    <Card className="bg-white shadow-sm"><CardHeader><CardTitle className="flex items-center gap-2"><Clapperboard className="h-5 w-5 text-[var(--color-primary-dark)] " />Catálogo de filmes</CardTitle><CardDescription>Não encontrou um filme no seletor? Busque e adicione ao nosso catálogo.</CardDescription></CardHeader><CardContent>
+    <Modal open={catalogOpen} onOpenChange={(open) => { if (!addingMovieId) setCatalogOpen(open) }} title="Adicionar filme ao catálogo" description="Pesquise na base de filmes e selecione o título que deseja adicionar." className="max-w-2xl bg-white">
+      <div className="p-6">
       <form onSubmit={searchMovies} className="flex gap-3">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-primary-dark)]" />
-          <Input value={query} onChange={(event) => setQuery(event.target.value)} className="border border-[var(--color-primary)] pl-10" placeholder="Buscar filme..." required />
+          <Input value={query} onChange={(event) => { setQuery(event.target.value); setHasSearched(false); setSearchResults([]) }} className="border border-[var(--color-primary)] pl-10" placeholder="Buscar filme..." required />
         </div>
         <Button disabled={isSearching}>{isSearching ? 'Buscando...' : 'Buscar'}</Button>
       </form>
-      {searchResults.length > 0 && <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{searchResults.map((movie) => <div key={movie.id} className="flex min-h-20 items-center gap-3 rounded-lg px-3 py-2 shadow-sm">
+      {catalogError && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{catalogError}</p>}
+      {searchResults.length > 0 && <div className="mt-4 grid gap-2 sm:grid-cols-2">{searchResults.map((movie) => <div key={movie.id} className="flex min-h-20 items-center gap-3 rounded-lg border border-slate-100 px-3 py-2 shadow-sm">
         <div className="h-16 w-11 shrink-0 overflow-hidden rounded bg-slate-100">
           {movie.poster_path ? <img src={`https://image.tmdb.org/t/p/w185${movie.poster_path}`} alt={`Pôster de ${movie.title}`} className="h-full w-full object-cover" loading="lazy" /> : <div className="flex h-full w-full items-center justify-center"><Clapperboard className="h-5 w-5 text-slate-400" /></div>}
         </div>
         <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{movie.title}</p><p className="text-xs text-slate-500">{movie.release_date?.slice(0, 4) || 'Sem data'}</p></div>
-        <Button className="h-8 w-8 shrink-0 p-0" type="button" onClick={() => addMovie(movie.id)} aria-label={`Adicionar ${movie.title}`} title={`Adicionar ${movie.title}`}><Plus className="h-4 w-4" /></Button>
+        <Button className="h-8 w-8 shrink-0 p-0" type="button" disabled={addingMovieId !== null} onClick={() => addMovie(movie.id)} aria-label={`Adicionar ${movie.title}`} title={`Adicionar ${movie.title}`}><Plus className={`h-4 w-4 ${addingMovieId === movie.id ? 'animate-pulse' : ''}`} /></Button>
       </div>)}</div>}
-    </CardContent></Card>
+      {!isSearching && hasSearched && searchResults.length === 0 && !catalogError && <p className="py-8 text-center text-sm text-slate-500">Nenhum filme encontrado.</p>}
+      </div>
+    </Modal>
   </div>
 }
 

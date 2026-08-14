@@ -41,6 +41,13 @@ class CinemaRead(BaseModel):
     organizer_id: int
 
 
+class CinemaUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(..., min_length=1, max_length=255)
+    address: str = Field(..., min_length=1)
+
+
 class OrganizerRegistrationRead(BaseModel):
     user: UserRead
     cinema: CinemaRead

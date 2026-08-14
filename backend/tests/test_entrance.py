@@ -40,28 +40,50 @@ async def _setup_entrance(db):
 async def test_gatekeeper_validates_ticket_once(client, db_session):
     gate_token, event, _, ticket, token = await _setup_entrance(db_session)
     headers = {"Authorization": f"Bearer {gate_token}"}
-    first = await client.post("/api/entrance/validate", headers=headers, json={"event_id": event.id, "token": token})
+    first = await client.post("/api/entrance/validate", headers=headers, json={"token": token})
     assert first.status_code == 200
     assert first.json()["result"] == "valid"
-    second = await client.post("/api/entrance/validate", headers=headers, json={"event_id": event.id, "token": token})
+    second = await client.post("/api/entrance/validate", headers=headers, json={"token": token})
     assert second.json()["result"] == "used"
     ticket_id = ticket.id
     db_session.expire_all()
     stored = await db_session.get(Ticket, ticket_id)
     assert stored.status == TicketStatus.used
     assert stored.used_at is not None
+    gatekeeper = await db_session.scalar(select(User).where(User.email == "entrance-gate@test.com"))
+    assert stored.used_by_id == gatekeeper.id
 
 
-async def test_entrance_rejects_invalid_and_wrong_event(client, db_session):
+async def test_entrance_rejects_invalid_token(client, db_session):
     gate_token, _, other_event, _, token = await _setup_entrance(db_session)
     headers = {"Authorization": f"Bearer {gate_token}"}
-    invalid = await client.post("/api/entrance/validate", headers=headers, json={"event_id": other_event.id, "token": token + "changed"})
+    invalid = await client.post("/api/entrance/validate", headers=headers, json={"token": token + "changed"})
     assert invalid.json()["result"] == "invalid"
-    wrong = await client.post("/api/entrance/validate", headers=headers, json={"event_id": other_event.id, "token": token})
-    assert wrong.json()["result"] == "wrong_event"
-    assert "token_hash" not in wrong.json()
+    assert "token_hash" not in invalid.json()
 
 
 async def test_non_gatekeeper_cannot_validate(client, client_token):
-    response = await client.post("/api/entrance/validate", headers={"Authorization": f"Bearer {client_token}"}, json={"event_id": 1, "token": "not-a-ticket"})
+    response = await client.post("/api/entrance/validate", headers={"Authorization": f"Bearer {client_token}"}, json={"token": "not-a-ticket"})
     assert response.status_code == 403
+
+
+async def test_gatekeeper_cannot_validate_ticket_from_another_cinema(client, db_session):
+    gate_token, _, _, _, _ = await _setup_entrance(db_session)
+    other_organizer = User(name="Other Organizer", email="other-entrance-org@test.com", password_hash=hash_password("password123"), role=UserRole.ORGANIZER)
+    other_client = User(name="Other Client", email="other-entrance-client@test.com", password_hash=hash_password("password123"), role=UserRole.CLIENT)
+    db_session.add_all([other_organizer, other_client]); await db_session.flush()
+    cinema = Cinema(name="Other Cinema", address="Rua 2", organizer_id=other_organizer.id); db_session.add(cinema); await db_session.flush()
+    room = Room(name="Other Room", capacity=1, cinema_id=cinema.id)
+    movie = Movie(title="Other Movie", duration_minutes=90, tmdb_id=990012)
+    db_session.add_all([room, movie]); await db_session.flush()
+    seat = Seat(room_id=room.id, row="A", number=1, seat_type=SeatType.standard); db_session.add(seat); await db_session.flush()
+    event = Event(movie_id=movie.id, room_id=room.id, organizer_id=other_organizer.id, start_datetime=datetime.now() + timedelta(hours=2), price=Decimal("20"), projection_type="2D"); db_session.add(event); await db_session.flush()
+    reservation = Reservation(user_id=other_client.id, event_id=event.id, status=ReservationStatus.confirmed); db_session.add(reservation); await db_session.flush()
+    reservation_seat = ReservationSeat(reservation_id=reservation.id, event_id=event.id, seat_id=seat.id, price=event.price); db_session.add(reservation_seat); await db_session.flush()
+    token, token_hash = generate_ticket_token(reservation_seat.id)
+    ticket = Ticket(reservation_seat_id=reservation_seat.id, token_hash=token_hash); db_session.add(ticket); await db_session.commit()
+
+    response = await client.post("/api/entrance/validate", headers={"Authorization": f"Bearer {gate_token}"}, json={"token": token})
+    assert response.status_code == 200
+    assert response.json()["result"] == "invalid"
+    assert response.json()["ticket_id"] is None

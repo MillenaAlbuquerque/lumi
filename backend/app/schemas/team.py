@@ -11,6 +11,14 @@ class GatekeeperCreate(BaseModel):
     password: str = Field(..., min_length=8)
 
 
+class GatekeeperUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(..., min_length=1, max_length=255)
+    email: EmailStr
+    password: str | None = Field(default=None, min_length=8)
+
+
 class GatekeeperRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

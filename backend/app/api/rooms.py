@@ -8,6 +8,7 @@ from app.api.deps import require_organizer
 from app.db.session import get_db
 from app.models.cinema import Cinema
 from app.models.enums import SeatType
+from app.models.event import Event
 from app.models.room import Room
 from app.models.seat import Seat
 from app.models.user import User
@@ -48,7 +49,7 @@ async def _get_owned_room(
         query = query.options(selectinload(Room.seats))
     room = await db.scalar(query)
     if room is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sala não encontrada.")
     return room
 
 
@@ -75,7 +76,7 @@ async def create_room(
         select(Room).where(Room.cinema_id == cinema.id, Room.name == payload.name)
     )
     if existing is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Room name already exists")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Nome da sala já existe")
 
     room = Room(
         name=payload.name,
@@ -93,7 +94,7 @@ async def create_room(
         await db.commit()
     except IntegrityError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Room name already exists") from exc
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Nome da sala já existe") from exc
 
     return room
 
@@ -123,14 +124,14 @@ async def update_room(
         )
     )
     if duplicate is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Room name already exists")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Nome da sala já existe")
 
     room.name = payload.name
     try:
         await db.commit()
     except IntegrityError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Room name already exists") from exc
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Nome da sala já existe") from exc
     return room
 
 
@@ -141,6 +142,11 @@ async def delete_room(
     current_user: User = Depends(require_organizer),
 ) -> None:
     room = await _get_owned_room(db, room_id, current_user.id, with_seats=True)
+    if await db.scalar(select(Event.id).where(Event.room_id == room.id).limit(1)) is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A sala tem sessões e não pode ser deletada.",
+        )
     await db.delete(room)
     try:
         await db.commit()
@@ -148,5 +154,5 @@ async def delete_room(
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Room is in use and cannot be deleted",
+            detail="A sala está em uso e não pode ser deletada.",
         ) from exc

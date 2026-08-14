@@ -1,9 +1,14 @@
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal
+
 from httpx import AsyncClient
 from sqlalchemy import select
 
 from app.core.security import create_access_token, hash_password
 from app.models.cinema import Cinema
 from app.models.enums import UserRole
+from app.models.event import Event
+from app.models.movie import Movie
 from app.models.room import Room
 from app.models.user import User
 
@@ -117,3 +122,31 @@ async def test_cinema_id_cannot_be_sent_or_changed(client, organizer_token):
         headers=headers,
     )
     assert update_response.status_code == 422
+
+
+async def test_organizer_deletes_room_without_sessions(client, organizer_token):
+    created = await client.post(
+        "/api/rooms",
+        json={"name": "Sala Temporária", "rows": 2, "seats_per_row": 2},
+        headers=_auth_headers(organizer_token),
+    )
+    response = await client.delete(
+        f"/api/rooms/{created.json()['id']}", headers=_auth_headers(organizer_token)
+    )
+    assert response.status_code == 204
+    assert (await client.get("/api/rooms", headers=_auth_headers(organizer_token))).json() == []
+
+
+async def test_organizer_cannot_delete_room_with_session(client, organizer_token, db_session):
+    organizer = await db_session.scalar(select(User).where(User.email == "organizer@lumi-test.com"))
+    cinema = await db_session.scalar(select(Cinema).where(Cinema.organizer_id == organizer.id))
+    room = Room(name="Sala com Sessão", capacity=10, cinema_id=cinema.id)
+    movie = Movie(title="Filme", duration_minutes=100)
+    db_session.add_all([room, movie])
+    await db_session.flush()
+    db_session.add(Event(movie_id=movie.id, room_id=room.id, organizer_id=organizer.id, start_datetime=datetime.now(timezone.utc) + timedelta(days=1), price=Decimal("20.00"), projection_type="2D"))
+    await db_session.commit()
+
+    response = await client.delete(f"/api/rooms/{room.id}", headers=_auth_headers(organizer_token))
+    assert response.status_code == 409
+    assert "sessões" in response.json()["detail"]

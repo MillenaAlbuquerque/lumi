@@ -5,6 +5,7 @@ const API_BASE_URL = configuredApiUrl.endsWith('/api') ? configuredApiUrl : `${c
 
 export interface SessionTicketSales {
   event_id: number
+  movie_id: number
   movie_title: string
   poster_url: string | null
   room_name: string

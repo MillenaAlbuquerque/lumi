@@ -45,4 +45,25 @@ async def test_gatekeeper_can_login(client, organizer_token):
     await client.post("/api/team", json={"name": "Porteiro", "email": "login@portaria.com", "password": "password123"}, headers=_headers(organizer_token))
     response = await client.post("/api/auth/login", json={"email": "login@portaria.com", "password": "password123"})
     assert response.status_code == 200
+
+
+async def test_organizer_updates_and_deletes_own_gatekeeper(client, organizer_token):
+    created = await client.post(
+        "/api/team",
+        json={"name": "Porteiro Antigo", "email": "editar@portaria.com", "password": "password123"},
+        headers=_headers(organizer_token),
+    )
+    member_id = created.json()["id"]
+    updated = await client.put(
+        f"/api/team/{member_id}",
+        json={"name": "Porteiro Novo", "email": "novo@portaria.com"},
+        headers=_headers(organizer_token),
+    )
+    assert updated.status_code == 200
+    assert updated.json()["name"] == "Porteiro Novo"
+    assert updated.json()["email"] == "novo@portaria.com"
+
+    deleted = await client.delete(f"/api/team/{member_id}", headers=_headers(organizer_token))
+    assert deleted.status_code == 204
+    assert (await client.get("/api/team", headers=_headers(organizer_token))).json() == []
 from sqlalchemy import select

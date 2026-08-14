@@ -13,12 +13,11 @@ class EntranceEventRead(BaseModel):
 
 
 class EntranceValidationCreate(BaseModel):
-    event_id: int = Field(..., gt=0)
     token: str = Field(..., min_length=1, max_length=500)
 
 
 class EntranceValidationRead(BaseModel):
-    result: Literal["valid", "invalid", "used", "wrong_event"]
+    result: Literal["valid", "invalid", "used"]
     message: str
     ticket_id: int | None = None
     movie_title: str | None = None

@@ -63,3 +63,12 @@ async def test_organizer_can_get_own_cinema(client, db_session):
     assert response.status_code == 200
     assert response.json()["name"] == "Cine Maria"
     assert response.json()["organizer_id"] == user_id
+async def test_organizer_updates_own_cinema(client, organizer_token):
+    response = await client.put(
+        "/api/auth/me/cinema",
+        json={"name": "Lumi Atualizado", "address": "Rua Nova, 123"},
+        headers={"Authorization": f"Bearer {organizer_token}"},
+    )
+    assert response.status_code == 200
+    assert response.json()["name"] == "Lumi Atualizado"
+    assert response.json()["address"] == "Rua Nova, 123"

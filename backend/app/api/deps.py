@@ -17,7 +17,7 @@ async def get_current_user(
 ) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="Não foi possível validar as credenciais",
         headers={"WWW-Authenticate": "Bearer"},
     )
     if credentials is None:
@@ -40,7 +40,7 @@ async def require_organizer(current_user: User = Depends(get_current_user)) -> U
     if current_user.role != UserRole.ORGANIZER:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only organizers can perform this action",
+            detail="Apenas organizadores podem realizar esta ação",
         )
     return current_user
 
@@ -49,7 +49,7 @@ async def require_client(current_user: User = Depends(get_current_user)) -> User
     if current_user.role != UserRole.CLIENT:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only clients can perform this action",
+            detail="Apenas clientes podem realizar esta ação",
         )
     return current_user
 
@@ -58,6 +58,6 @@ async def require_gatekeeper(current_user: User = Depends(get_current_user)) -> 
     if current_user.role != UserRole.GATEKEEPER:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only gatekeepers can perform this action",
+            detail="Apenas funcionários da equipe podem realizar esta ação",
         )
     return current_user

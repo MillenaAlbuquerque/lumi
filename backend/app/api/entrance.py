@@ -69,15 +69,6 @@ async def validate_entrance_ticket(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_gatekeeper),
 ) -> dict:
-    allowed_event = await db.scalar(
-        select(Event.id)
-        .join(Room, Event.room_id == Room.id)
-        .join(cinema_gatekeepers, cinema_gatekeepers.c.cinema_id == Room.cinema_id)
-        .where(Event.id == payload.event_id, cinema_gatekeepers.c.user_id == current_user.id)
-    )
-    if allowed_event is None:
-        return _ticket_result("wrong_event", "Esta sessão não pertence ao cinema da portaria.")
-
     submitted_code = payload.token.strip()
     manual_ticket_id = ticket_id_from_manual_code(submitted_code)
     reservation_seat_id = (
@@ -93,7 +84,12 @@ async def validate_entrance_ticket(
     )
     ticket = await db.scalar(
         select(Ticket)
+        .join(ReservationSeat, Ticket.reservation_seat_id == ReservationSeat.id)
+        .join(Event, ReservationSeat.event_id == Event.id)
+        .join(Room, Event.room_id == Room.id)
+        .join(cinema_gatekeepers, cinema_gatekeepers.c.cinema_id == Room.cinema_id)
         .where(ticket_lookup)
+        .where(cinema_gatekeepers.c.user_id == current_user.id)
         .with_for_update()
         .options(
             selectinload(Ticket.reservation_seat).selectinload(ReservationSeat.seat),
@@ -107,8 +103,6 @@ async def validate_entrance_ticket(
         and not hmac.compare_digest(ticket.token_hash, token_hash)
     ):
         return _ticket_result("invalid", "Código de ingresso inválido.")
-    if ticket.reservation_seat.event_id != payload.event_id:
-        return _ticket_result("wrong_event", "O ingresso pertence a outra sessão.", ticket)
     if ticket.status == TicketStatus.used:
         return _ticket_result("used", "Este ingresso já foi utilizado.", ticket)
     if ticket.status != TicketStatus.issued:
@@ -117,5 +111,6 @@ async def validate_entrance_ticket(
     ticket.status = TicketStatus.used
     from sqlalchemy import func
     ticket.used_at = await db.scalar(select(func.now()))
+    ticket.used_by_id = current_user.id
     await db.commit()
     return _ticket_result("valid", "Entrada liberada.", ticket)

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
-import { DoorOpen, Plus} from 'lucide-react'
+import { DoorOpen, Plus, Trash2 } from 'lucide-react'
 import { Button } from '../../../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../ui/card'
 import { Input } from '../../../ui/input'
 import { roomService, type Room } from '../../../../services/roomService'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../../../ui/alert-dialog'
+import FeedbackDialog, { type FeedbackMessage } from '../../../ui/feedback-dialog'
 
 function RoomManager() {
   const [rooms, setRooms] = useState<Room[]>([])
@@ -13,6 +15,9 @@ function RoomManager() {
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState('')
+  const [roomToDelete, setRoomToDelete] = useState<Room | null>(null)
+  const [deletingRoomId, setDeletingRoomId] = useState<number | null>(null)
+  const [feedback, setFeedback] = useState<FeedbackMessage | null>(null)
 
   useEffect(() => {
     roomService.list()
@@ -35,11 +40,22 @@ function RoomManager() {
       setName('')
       setRows('')
       setSeatsPerRow('')
+      setFeedback({ type: 'success', title: 'Sala criada', description: `${room.name} foi cadastrada com ${room.capacity} lugares.` })
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Erro ao criar sala')
+      const message = requestError instanceof Error ? requestError.message : 'Erro ao criar sala'
+      setError(message)
+      setFeedback({ type: 'error', title: 'Não foi possível criar', description: message })
     } finally {
       setIsCreating(false)
     }
+  }
+
+  const deleteRoom = async () => {
+    if (!roomToDelete) return
+    setDeletingRoomId(roomToDelete.id); setError('')
+    try { await roomService.delete(roomToDelete.id); setRooms((current) => current.filter((room) => room.id !== roomToDelete.id)); setRoomToDelete(null); setFeedback({ type: 'success', title: 'Sala excluída', description: 'A sala e seus assentos foram removidos com sucesso.' }) }
+    catch (requestError) { const message = requestError instanceof Error ? requestError.message : 'Não foi possível excluir a sala.'; setError(message); setRoomToDelete(null); setFeedback({ type: 'error', title: 'Não foi possível excluir', description: message }) }
+    finally { setDeletingRoomId(null) }
   }
 
   return (
@@ -103,6 +119,7 @@ function RoomManager() {
                   </CardTitle>
                   <span className="flex items-center gap-2 whitespace-nowrap text-sm text-slate-600">
                      {room.capacity} lugares
+                    <button type="button" onClick={() => setRoomToDelete(room)} title="Excluir sala" aria-label={`Excluir ${room.name}`} className="ml-2 cursor-pointer rounded-lg p-2 text-red-400 transition hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
                   </span>
                 </CardContent>
               </Card>
@@ -110,6 +127,8 @@ function RoomManager() {
           </div>
         )}
       </div>
+      <AlertDialog open={roomToDelete !== null} onOpenChange={(open) => { if (!open && !deletingRoomId) setRoomToDelete(null) }}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{roomToDelete ? roomToDelete.name : 'Excluir sala'}</AlertDialogTitle><AlertDialogDescription>{roomToDelete && <>Esta sala e seus assentos serão excluídos. Tem certeza que deseja prosseguir?</>}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={Boolean(deletingRoomId)}>Manter sala</AlertDialogCancel><AlertDialogAction disabled={Boolean(deletingRoomId)} onClick={(event) => { event.preventDefault(); void deleteRoom() }}>{deletingRoomId ? 'Excluindo...' : 'Sim, excluir'}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+      <FeedbackDialog feedback={feedback} onClose={() => setFeedback(null)} />
     </div>
   )
 }

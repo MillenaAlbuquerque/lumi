@@ -11,6 +11,7 @@ export interface ClientTicket {
   session_id: number
   movie_title: string
   poster_url: string | null
+  backdrop_url: string | null
   cinema_name: string
   cinema_address: string
   room_name: string

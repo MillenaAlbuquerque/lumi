@@ -45,6 +45,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { active = false }
   }, [])
 
+  useEffect(() => {
+    const handleSessionEnded = () => setUser(null)
+    window.addEventListener('lumi:session-ended', handleSessionEnded)
+    return () => window.removeEventListener('lumi:session-ended', handleSessionEnded)
+  }, [])
+
   const login = async (email: string, password: string) => {
     try {
       const { user: userData } = await authService.login({ email, password })

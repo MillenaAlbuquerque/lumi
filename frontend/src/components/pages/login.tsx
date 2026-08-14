@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { useAuth } from '../../contexts/AuthContext'
 import logoLumi from '../../assets/images/lumi-logo.png'
-import cinema from '../../assets/images/cinema.jpg'
+import pipoca from '../../assets/images/pipocaLogin.jpg'
 
 function LoginPage() {
   const location = useLocation()
@@ -109,37 +109,34 @@ function LoginPage() {
   }
 
   return (
-    <div className="relative min-h-screen bg-cover bg-center" style={{ backgroundImage: `url(${cinema})` }}>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(248,186,81,0.18),_transparent_25%),linear-gradient(to_bottom_right,_rgba(15,23,42,0.60),_rgba(15,23,42,0.88))]" />
-      <div className="relative flex min-h-screen items-center justify-center lg:justify-end px-12 py-8">
-        <div className="absolute left-8 top-8 hidden lg:flex items-center gap-4">
+    <div className="min-h-screen bg-mauve-950 lg:grid lg:grid-cols-2">
+      <section className="relative min-h-56 overflow-hidden bg-cover bg-center sm:min-h-72 lg:min-h-screen" style={{ backgroundImage: `url(${pipoca})` }}>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(248,186,81,0.10),_transparent_40%),linear-gradient(to_bottom_right,_rgba(15,23,42,0.16),_rgba(15,23,42,0.52))]" />
+        <div className="absolute left-4 top-4 z-20 sm:left-6 sm:top-6">
           <button
             type="button"
             onClick={() => navigate('/')}
-            className="flex h-12 w-12 items-center justify-center text-white transition hover:bg-white/20 rounded-full"
+            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-white transition hover:bg-white/20 sm:h-12 sm:w-12"
             aria-label="Voltar"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-6 w-6 font-bold" />
           </button>
-          <img src={logoLumi} alt="Lumi" className="h-28 w-auto" />
         </div>
-        <div className="absolute left-30 top-1/2 hidden lg:block -translate-y-1/2 text-white max-w-lg">
-          <h2 className="text-5xl font-bold mb-4 leading-tight">
-            <span className="bg-clip-text text-transparent bg-[var(--color-primary-dark)]">
+        <img src={logoLumi} alt="Lumi" className="absolute left-14 top-0 z-10 h-30 w-auto sm:left-18 sm:top-1 sm:h-34 lg:h-45" />
+        <div className="absolute bottom-7 left-6 right-6 z-10 text-white sm:bottom-10 sm:left-10 lg:bottom-14 lg:left-14 lg:right-14 lg:max-w-md">
+          <h2 className="mb-2 text-3xl font-semibold leading-tight sm:text-4xl lg:mb-4 lg:text-5xl">
+            <span className="text-[var(--color-primary)]">
               Bem-vindo ao Lumi
             </span>
           </h2>
-          <p className="text-xl text-white/85 max-w-sm">
+          <p className="max-w-sm text-sm text-white font-semibold sm:text-base lg:text-xl">
             Entre ou cadastre-se para reservar seus ingressos.
           </p>
         </div>
+      </section>
 
-        <div className="w-full max-w-md lg:mr-12 bg-[var(--color-surface)]/60   p-8 rounded-3xl shadow-2xl shadow-black/30">
-          <div className="lg:hidden mb-8 text-center">
-            <img src={logoLumi} alt="Lumi" className="h-20 w-auto mx-auto mb-4" />
-            <h1 className="text-3xl font-bold text-white">Bem-vindo ao Lumi</h1>
-          </div>
-
+      <section className="flex min-h-[calc(100vh-14rem)] items-center justify-center bg-[var(--color-surface)] px-4 py-8 sm:min-h-[calc(100vh-18rem)] sm:px-8 lg:min-h-screen lg:px-12">
+        <div className="w-full max-w-md">
           <Tabs defaultValue={defaultTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-8 ">
               <TabsTrigger value="login" className="flex items-center gap-2">
@@ -394,7 +391,7 @@ function LoginPage() {
             </TabsContent>
           </Tabs>
         </div>
-      </div>
+      </section>
     </div>
   )
 }

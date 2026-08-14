@@ -32,7 +32,7 @@ async def create_movie(
 ) -> Movie:
     existing = await db.scalar(select(Movie).where(Movie.tmdb_id == payload.tmdb_id))
     if existing is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Movie already registered")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Filme já registrado no catálogo.")
 
     movie = Movie(**payload.model_dump())
     db.add(movie)
@@ -40,7 +40,7 @@ async def create_movie(
         await db.commit()
     except IntegrityError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Movie already registered") from exc
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Filme já registrado no catálogo.") from exc
     await db.refresh(movie)
     return movie
 

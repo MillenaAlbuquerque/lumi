@@ -46,7 +46,7 @@ function MoviesSessionsSection() {
     setSelectionMessage(`${movie.title} · ${cinema.name} · ${date.toLocaleString('pt-BR')}`)
   }
 
-  return <section id="sessoes" className="px-6 py-10">
+  return <section id="sessoes" className="scroll-mt-28 px-6 py-10 sm:scroll-mt-32">
     <div className="mx-auto max-w-7xl">
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div><h2 className="flex items-center gap-3 text-4xl font-medium text-white sm:text-5xl"><Popcorn className="h-10 w-10 text-[var(--color-primary-dark)] sm:h-12 sm:w-12" />Em Cartaz</h2><p className="mt-4 text-lg text-white/70">Escolha um filme e veja os cinemas e horários disponíveis.</p></div>

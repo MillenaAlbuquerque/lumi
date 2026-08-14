@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { LogOut, User } from 'lucide-react'
 import logoLumi from '../../assets/images/lumi-logo.png'
 import { Button } from '../ui/button'
@@ -8,10 +8,39 @@ import { useAuth } from '../../contexts/AuthContext'
 const navigationItems = [{ label: 'Filmes', to: '/#sessoes' }] as const
 
 function Header() {
+  const location = useLocation()
+  const navigate = useNavigate()
   const { user, isAuthenticated, logout } = useAuth()
   const [isScrolled, setIsScrolled] = useState(false)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
+
+  const scrollToMovies = () => {
+    const section = document.getElementById('sessoes')
+    if (!section) return false
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    return true
+  }
+
+  const handleMoviesClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault()
+    if (location.pathname === '/') {
+      window.history.replaceState(null, '', '/#sessoes')
+      scrollToMovies()
+      return
+    }
+    navigate('/#sessoes')
+  }
+
+  useEffect(() => {
+    if (location.pathname !== '/' || location.hash !== '#sessoes') return
+    let attempts = 0
+    const timer = window.setInterval(() => {
+      attempts += 1
+      if (scrollToMovies() || attempts >= 20) window.clearInterval(timer)
+    }, 50)
+    return () => window.clearInterval(timer)
+  }, [location.pathname, location.hash])
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20)
@@ -46,7 +75,7 @@ function Header() {
         </Link>
 
         <nav aria-label="Navegação principal" className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center justify-center gap-2 p-1.5 md:flex">
-          {navigationItems.map((item) => <Link key={item.label} to={item.to} className={linkClass}>{item.label}</Link>)}
+          {navigationItems.map((item) => <Link key={item.label} to={item.to} onClick={handleMoviesClick} className={linkClass}>{item.label}</Link>)}
           <Link to="/cinemas" className={linkClass}>Cinemas</Link>
           {roleLink && <Link to={roleLink.to} className={linkClass}>{roleLink.label}</Link>}
         </nav>
@@ -77,7 +106,7 @@ function Header() {
 
       <nav aria-label="Navegação mobile" className="border-t border-white/20 px-4 py-1 md:hidden">
         <div className="mx-auto flex max-w-7xl justify-center gap-2 overflow-x-auto">
-          {navigationItems.map((item) => <Link key={item.label} to={item.to} className={mobileLinkClass}>{item.label}</Link>)}
+          {navigationItems.map((item) => <Link key={item.label} to={item.to} onClick={handleMoviesClick} className={mobileLinkClass}>{item.label}</Link>)}
           <Link to="/cinemas" className={mobileLinkClass}>Cinemas</Link>
           {roleLink && <Link to={roleLink.to} className={mobileLinkClass}>{roleLink.label}</Link>}
         </div>

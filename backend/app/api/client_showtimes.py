@@ -163,7 +163,7 @@ async def session_seat_availability(
         )
     ).one_or_none()
     if session_row is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session is unavailable")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session está indisponível ou não encontrada")
 
     occupied_seats = (
         select(ReservationSeat.seat_id)
@@ -206,7 +206,7 @@ async def create_seat_hold(
         select(Event).where(Event.id == session_id, Event.start_datetime > func.now()).with_for_update()
     )
     if event is None:
-        raise HTTPException(status_code=404, detail="Session is unavailable")
+        raise HTTPException(status_code=404, detail="Session está indisponível ou não encontrada")
 
     seats = list((await db.scalars(
         select(Seat)
@@ -215,7 +215,7 @@ async def create_seat_hold(
         .with_for_update()
     )).all())
     if len(seats) != len(payload.seat_ids):
-        raise HTTPException(status_code=409, detail="One or more seats do not belong to this session")
+        raise HTTPException(status_code=409, detail="Um ou mais assentos selecionados não existem na sessão")
 
     occupied_ids = set((await db.scalars(
         select(ReservationSeat.seat_id)
@@ -231,7 +231,7 @@ async def create_seat_hold(
         )
     )).all())
     if occupied_ids:
-        raise HTTPException(status_code=409, detail="One or more seats are no longer available")
+        raise HTTPException(status_code=409, detail="Um ou mais assentos não estão mais disponíveis")
 
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
     reservation = Reservation(
@@ -255,7 +255,7 @@ async def create_seat_hold(
         await db.commit()
     except IntegrityError as exc:
         await db.rollback()
-        raise HTTPException(status_code=409, detail="Seats are no longer available") from exc
+        raise HTTPException(status_code=409, detail="Assentos não estão mais disponíveis") from exc
 
     seat_ids = [seat.id for seat in seats]
     await seat_update_manager.publish_held(session_id, seat_ids, current_user.id)

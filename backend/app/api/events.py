@@ -43,7 +43,7 @@ async def _validate_payload(
 ) -> None:
     movie = await db.get(Movie, movie_id)
     if movie is None:
-        raise HTTPException(status_code=404, detail="Movie not found")
+        raise HTTPException(status_code=404, detail="Filme não encontrado")
 
     room = await db.scalar(
         select(Room).join(Cinema).where(
@@ -51,11 +51,11 @@ async def _validate_payload(
         )
     )
     if room is None:
-        raise HTTPException(status_code=404, detail="Room not found")
+        raise HTTPException(status_code=404, detail="Sala não encontrada")
 
     start = _normalized(start_datetime)
     if start < _normalized(datetime.now()):
-        raise HTTPException(status_code=400, detail="start_datetime must be in the future")
+        raise HTTPException(status_code=400, detail="A data de início deve estar no futuro")
 
     rows = await db.execute(
         select(Event.id, Event.start_datetime, Movie.duration_minutes)
@@ -67,7 +67,7 @@ async def _validate_payload(
             continue
         existing_start = _normalized(existing_start)
         if start < existing_start + timedelta(minutes=duration) and existing_start < start + timedelta(minutes=movie.duration_minutes):
-            raise HTTPException(status_code=409, detail="Room already has an overlapping event")
+            raise HTTPException(status_code=409, detail="Sala já possui um evento que se sobrepõe")
 
 
 async def _commit(db: AsyncSession) -> None:
@@ -75,7 +75,7 @@ async def _commit(db: AsyncSession) -> None:
         await db.commit()
     except IntegrityError as exc:
         await db.rollback()
-        raise HTTPException(status_code=409, detail="Event could not be saved") from exc
+        raise HTTPException(status_code=409, detail="Evento não pôde ser salvo") from exc
 
 
 @router.post("", response_model=EventRead, status_code=status.HTTP_201_CREATED)
@@ -104,7 +104,7 @@ async def list_events(db: AsyncSession = Depends(get_db), current_user: User = D
 async def get_event(event_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_organizer)) -> Event:
     event = await db.scalar(_owned_events_query(current_user.id).where(Event.id == event_id))
     if event is None:
-        raise HTTPException(status_code=404, detail="Event not found")
+        raise HTTPException(status_code=404, detail="Evento não encontrado")
     return event
 
 
@@ -112,7 +112,7 @@ async def get_event(event_id: int, db: AsyncSession = Depends(get_db), current_u
 async def update_event(event_id: int, payload: EventUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_organizer)) -> Event:
     event = await db.scalar(_owned_events_query(current_user.id).where(Event.id == event_id))
     if event is None:
-        raise HTTPException(status_code=404, detail="Event not found")
+        raise HTTPException(status_code=404, detail="Evento não encontrado")
 
     movie_id = payload.movie_id if payload.movie_id is not None else event.movie_id
     room_id = payload.room_id if payload.room_id is not None else event.room_id
@@ -131,6 +131,6 @@ async def update_event(event_id: int, payload: EventUpdate, db: AsyncSession = D
 async def delete_event(event_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_organizer)) -> None:
     event = await db.scalar(_owned_events_query(current_user.id).where(Event.id == event_id))
     if event is None:
-        raise HTTPException(status_code=404, detail="Event not found")
+        raise HTTPException(status_code=404, detail="Evento não encontrado")
     await db.delete(event)
     await _commit(db)

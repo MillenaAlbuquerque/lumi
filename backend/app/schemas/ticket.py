@@ -14,6 +14,7 @@ class ClientTicketRead(BaseModel):
     session_id: int
     movie_title: str
     poster_url: str | None
+    backdrop_url: str | None
     cinema_name: str
     cinema_address: str
     room_name: str
@@ -35,6 +36,7 @@ class SharedTicketRead(BaseModel):
     status: TicketStatus
     movie_title: str
     poster_url: str | None
+    backdrop_url: str | None
     cinema_name: str
     cinema_address: str
     room_name: str

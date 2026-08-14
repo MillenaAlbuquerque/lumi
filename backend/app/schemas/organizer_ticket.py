@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 class OrganizerSessionSalesRead(BaseModel):
     event_id: int
+    movie_id: int
     movie_title: str
     poster_url: str | None
     room_name: str

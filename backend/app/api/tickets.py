@@ -30,6 +30,7 @@ def _ticket_details(ticket: Ticket, *, include_identity: bool = True) -> dict:
         "status": ticket.status,
         "movie_title": event.movie.title,
         "poster_url": event.movie.poster_url,
+        "backdrop_url": event.movie.backdrop_url,
         "cinema_name": event.room.cinema.name,
         "cinema_address": event.room.cinema.address,
         "room_name": event.room.name,

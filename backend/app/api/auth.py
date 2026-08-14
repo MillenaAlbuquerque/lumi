@@ -2,13 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_organizer
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db.session import get_db
 from app.models.cinema import Cinema
 from app.models.enums import UserRole
 from app.models.user import User
-from app.schemas.auth import CinemaRead, OrganizerRegister, OrganizerRegistrationRead, Token, UserLogin, UserRead, UserRegister
+from app.schemas.auth import CinemaRead, CinemaUpdate, OrganizerRegister, OrganizerRegistrationRead, Token, UserLogin, UserRead, UserRegister
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -41,7 +41,7 @@ async def register_organizer(
 ) -> dict[str, User | Cinema]:
     existing = await db.scalar(select(User).where(User.email == payload.email))
     if existing is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email já registrado")
 
     user = User(
         name=payload.name,
@@ -90,10 +90,26 @@ async def get_my_cinema(
     if current_user.role != UserRole.ORGANIZER:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only organizers have a cinema",
+            detail="Apenas organizadores têm um cinema",
         )
 
     cinema = await db.scalar(select(Cinema).where(Cinema.organizer_id == current_user.id))
     if cinema is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organizer cinema not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cinema não encontrado para o organizador")
+    return cinema
+
+
+@router.put("/me/cinema", response_model=CinemaRead)
+async def update_my_cinema(
+    payload: CinemaUpdate,
+    current_user: User = Depends(require_organizer),
+    db: AsyncSession = Depends(get_db),
+) -> Cinema:
+    cinema = await db.scalar(select(Cinema).where(Cinema.organizer_id == current_user.id))
+    if cinema is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cinema não encontrado para o organizador")
+    cinema.name = payload.name
+    cinema.address = payload.address
+    await db.commit()
+    await db.refresh(cinema)
     return cinema

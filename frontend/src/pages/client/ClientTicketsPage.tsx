@@ -3,6 +3,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { Armchair, CalendarDays, Clapperboard, Copy, MapPin, QrCode, Share2, Ticket as TicketIcon, X } from 'lucide-react'
 import Header from '../../components/layout/Header'
 import { Modal } from '../../components/ui/modal'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../../components/ui/alert-dialog'
 import { ticketService, type ClientTicket } from '../../services/ticketService'
 
 const statusLabels = { issued: 'Válido', used: 'Utilizado', cancelled: 'Cancelado' } as const
@@ -10,6 +11,7 @@ const statusLabels = { issued: 'Válido', used: 'Utilizado', cancelled: 'Cancela
 function ClientTicketsPage() {
   const [tickets, setTickets] = useState<ClientTicket[]>([])
   const [selectedTicket, setSelectedTicket] = useState<ClientTicket | null>(null)
+  const [ticketToCancel, setTicketToCancel] = useState<ClientTicket | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [copiedTicketId, setCopiedTicketId] = useState<number | null>(null)
@@ -26,15 +28,32 @@ function ClientTicketsPage() {
     setTimeout(() => setCopiedTicketId(null), 2000)
   }
 
+  const cancelTicket = async () => {
+    if (!ticketToCancel) return
+    const ticket = ticketToCancel
+    try {
+      setCancellingTicketId(ticket.id)
+      setError('')
+      const cancelled = await ticketService.cancel(ticket.id)
+      setTickets((current) => current.map((item) => item.id === ticket.id ? cancelled : item))
+      if (selectedTicket?.id === ticket.id) setSelectedTicket(cancelled)
+      setTicketToCancel(null)
+    } catch (cancelError) {
+      setError(cancelError instanceof Error ? cancelError.message : 'Não foi possível cancelar o ingresso.')
+    } finally {
+      setCancellingTicketId(null)
+    }
+  }
+
   return <div className="min-h-screen bg-mauve-950 text-white">
     <Header />
     <main className="mx-auto max-w-7xl px-4 pb-16 pt-36 sm:px-6 lg:px-8">
       <div className="mb-10">
         <h1 className="mt-2 text-3xl font-medium text-[var(--color-primary-dark)] sm:text-4xl">Meus ingressos</h1>
-        <p className="mt-3 max-w-2xl text-c">Clique em um ingresso para exibir o QR Code na portaria.</p>
+        <p className="mt-3 max-w-2xl text-c">Clique em um ingresso para validar o QR Code na portaria.</p>
       </div>
 
-      {loading && <div className="py-20 text-center text-white/50">Carregando seus ingressos...</div>}
+      {loading && <div className="py-20 text-center text-white/50"></div>}
       {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-200">{error}</div>}
       {!loading && !error && tickets.length === 0 && <div className="rounded-2xl border border-dashed border-white/15 p-12 text-center"><TicketIcon className="mx-auto h-10 w-10 text-orange-400" /><h2 className="mt-4 text-xl font-semibold">Você ainda não possui ingressos</h2><p className="mt-2 text-sm text-white/50">Após a confirmação de um pagamento, seus ingressos aparecerão aqui.</p></div>}
 
@@ -42,25 +61,25 @@ function ClientTicketsPage() {
         {tickets.map((ticket) => {
           const sessionDate = new Date(ticket.session_datetime)
           const canCancel = ticket.status === 'issued' && sessionDate.getTime() > Date.now() + 60 * 60 * 1000
-          return <article key={ticket.id} className="group overflow-hidden rounded-xl border border-white/10  shadow-xl transition duration-300 hover:-translate-y-1 ">
+          return <article key={ticket.id} className="group overflow-hidden rounded-2xl  bg-slate-900 shadow-xl transition duration-300 hover:-translate-y-1 ">
             <button type="button" onClick={() => setSelectedTicket(ticket)} className="block w-full cursor-pointer text-left" aria-label={`Abrir ingresso de ${ticket.movie_title}`}>
-              <div className="relative h-32 overflow-hidden bg-black/30 sm:h-36">
-                {ticket.poster_url ? <img src={ticket.poster_url} alt={`Cartaz de ${ticket.movie_title}`} className={`h-full w-full object-cover transition duration-500 group-hover:scale-105 ${ticket.status !== 'issued' ? 'grayscale' : ''}`} /> : <div className="flex h-full items-center justify-center"><Clapperboard className="h-10 w-10 text-white/25" /></div>}
+              <div className="relative h-32 overflow-hidden bg-black/30 sm:h-56">
+                {ticket.backdrop_url || ticket.poster_url ? <img src={ticket.backdrop_url || ticket.poster_url || ''} alt={`Imagem de ${ticket.movie_title}`} className={`h-full w-full object-cover transition duration-500 group-hover:scale-105 ${ticket.status !== 'issued' ? 'grayscale' : ''}`} /> : <div className="flex h-full items-center justify-center"><Clapperboard className="h-10 w-10 text-white/25" /></div>}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
                 <span className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider  ${ticket.status === 'issued' ? 'bg-[var(--color-surface)] text-emerald-400' : ticket.status === 'used' ? 'bg-[var(--color-surface)] text-slate-600' : 'bg-[var(--color-surface)] text-red-400'}`}>{statusLabels[ticket.status]}</span>
                 <h2 className="absolute bottom-3 left-4 right-4 line-clamp-2 text-lg font-semibold leading-tight">{ticket.movie_title}</h2>
               </div>
-              <div className="relative space-y-3 p-4 text-sm text-[var(--color-surface)] before:absolute before:-left-2 before:-top-2 before:h-4 before:w-4 before:rounded-full before:bg-mauve-950 after:absolute after:-right-2 after:-top-2 after:h-4 after:w-4 after:rounded-full after:bg-mauve-950">
+              <div className="relative space-y-3 border-t border-dashed border-white/15 bg-white/[0.04] p-4 text-sm text-[var(--color-surface)] before:absolute before:-left-2.5 before:-top-2.5 before:z-10 before:h-5 before:w-5 before:rounded-full before:bg-mauve-950 after:absolute after:-right-2.5 after:-top-2.5 after:z-10 after:h-5 after:w-5 after:rounded-full after:bg-mauve-950">
                 <p className="flex gap-2"><CalendarDays className="h-4 w-4 shrink-0 text-orange-400" /><span>{sessionDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} às {sessionDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span></p>
                 <p className="flex gap-2"><MapPin className="h-4 w-4 shrink-0 text-orange-400" /><span className="truncate">{ticket.cinema_name}</span></p>
                 <p className="flex gap-2"><Armchair className="h-4 w-4 shrink-0 text-orange-400" /><span>{ticket.room_name} · Assento <strong className="text-orange-400">{ticket.seat_row}{ticket.seat_number}</strong></span></p>
               </div>
             </button>
 
-            <div className="grid grid-cols-3 divide-x divide-white/10 border-t border-dashed border-white/10 px-3 py-2">
+            <div className="relative grid grid-cols-3 divide-x divide-white/10 border-t border-dashed border-white/20 bg-white/[0.07] px-3 py-2 before:absolute before:-left-2.5 before:-top-2.5 before:z-10 before:h-5 before:w-5 before:rounded-full before:bg-mauve-950 after:absolute after:-right-2.5 after:-top-2.5 after:z-10 after:h-5 after:w-5 after:rounded-full after:bg-mauve-950">
               <button type="button" onClick={() => setSelectedTicket(ticket)} title="Ver QR Code" aria-label={`Ver QR Code do ingresso de ${ticket.movie_title}`} className="flex cursor-pointer justify-center py-2 text-orange-400 transition hover:text-orange-300"><QrCode className="h-5 w-5" /></button>
               <button type="button" disabled={sharingTicketId === ticket.id || ticket.status !== 'issued'} title="Compartilhar ingresso" aria-label={`Compartilhar ingresso de ${ticket.movie_title}`} onClick={async () => { try { setSharingTicketId(ticket.id); const share = await ticketService.share(ticket.id); if (navigator.share) await navigator.share({ title: `Ingresso - ${ticket.movie_title}`, text: `Ingresso ${ticket.seat_row}${ticket.seat_number}`, url: share.share_url }); else { await navigator.clipboard.writeText(share.share_url); setCopiedTicketId(ticket.id); setTimeout(() => setCopiedTicketId(null), 2000) } } catch (shareError) { if ((shareError as Error).name !== 'AbortError') setError(shareError instanceof Error ? shareError.message : 'Não foi possível compartilhar.') } finally { setSharingTicketId(null) } }} className="flex cursor-pointer justify-center py-2 text-orange-400 transition hover:text-orange-300 disabled:cursor-not-allowed disabled:opacity-35"><Share2 className={`h-5 w-5 ${sharingTicketId === ticket.id ? 'animate-pulse' : ''}`} /></button>
-              <button type="button" disabled={ticket.status !== 'issued' || !canCancel || cancellingTicketId === ticket.id} title={ticket.status !== 'issued' ? 'Ingresso indisponível para cancelamento' : !canCancel ? 'Cancelamento disponível somente até 1 hora antes da sessão' : 'Cancelar ingresso'} aria-label={`Cancelar ingresso de ${ticket.movie_title}`} onClick={async () => { if (!window.confirm(`Cancelar o ingresso ${ticket.seat_row}${ticket.seat_number} de ${ticket.movie_title}?`)) return; try { setCancellingTicketId(ticket.id); setError(''); const cancelled = await ticketService.cancel(ticket.id); setTickets((current) => current.map((item) => item.id === ticket.id ? cancelled : item)); if (selectedTicket?.id === ticket.id) setSelectedTicket(cancelled) } catch (cancelError) { setError(cancelError instanceof Error ? cancelError.message : 'Não foi possível cancelar o ingresso.') } finally { setCancellingTicketId(null) } }} className="flex cursor-pointer justify-center py-2 text-red-300 transition hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-25"><X className={`h-5 w-5 ${cancellingTicketId === ticket.id ? 'animate-pulse' : ''}`} /></button>
+              <button type="button" disabled={ticket.status !== 'issued' || !canCancel || cancellingTicketId === ticket.id} title={ticket.status !== 'issued' ? 'Ingresso indisponível para cancelamento' : !canCancel ? 'Cancelamento disponível somente até 1 hora antes da sessão' : 'Cancelar ingresso'} aria-label={`Cancelar ingresso de ${ticket.movie_title}`} onClick={() => setTicketToCancel(ticket)} className="flex cursor-pointer justify-center py-2 text-red-300 transition hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-25"><X className={`h-5 w-5 ${cancellingTicketId === ticket.id ? 'animate-pulse' : ''}`} /></button>
             </div>
           </article>
         })}
@@ -79,6 +98,18 @@ function ClientTicketsPage() {
         {selectedTicket.status !== 'issued' && <p className="mt-4 text-sm text-red-300">Este ingresso está {statusLabels[selectedTicket.status].toLowerCase()} e não pode ser validado.</p>}
       </div>}
     </Modal>
+    <AlertDialog open={ticketToCancel !== null} onOpenChange={(open) => { if (!open && !cancellingTicketId) setTicketToCancel(null) }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Cancelar este ingresso?</AlertDialogTitle>
+          <AlertDialogDescription>{ticketToCancel && <>Você está prestes a cancelar a sua reserva para assistir <strong className="text-white text-medium">{ticketToCancel.movie_title}</strong> . Essa ação não poderá ser desfeita.</>}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={Boolean(cancellingTicketId)}>Manter ingresso</AlertDialogCancel>
+          <AlertDialogAction disabled={Boolean(cancellingTicketId)} onClick={(event) => { event.preventDefault(); void cancelTicket() }}>{cancellingTicketId ? 'Cancelando...' : 'Cancelar'}</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 }
 
