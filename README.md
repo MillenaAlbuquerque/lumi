@@ -1,6 +1,7 @@
-# Lumi
+## Lumi 🍿
 
-> **Aplicação publicada:** [Lumi(https://lumi-front-924b.onrender.com/)]
+> **Aplicação publicada:** [Acessar Site](https://lumi-front-924b.onrender.com/)</br>
+> **Video Demonstrativo:** [Acessar Vídeo](https://drive.google.com/file/d/1GUC330N_qcrLxF8WQKz1vw8---vn5qBL/view?usp=sharing)
 
 ## Visão geral
 
@@ -344,3 +345,7 @@ Todas as contas abaixo utilizam a senha `LumiDemo123!`.
 | CLIENT | `cliente.teste@testuser.com` | Fluxo de compra |
 
 Os clientes usam e-mails terminados em `@testuser.com` para o fluxo com usuários de teste do Mercado Pago. O seed não contém tokens, chaves ou credenciais externas reais.
+
+## Autora
+
+| Millena Albuquerque | [@MillenaAlbuquerque](https://github.com/MillenaAlbuquerque) |
