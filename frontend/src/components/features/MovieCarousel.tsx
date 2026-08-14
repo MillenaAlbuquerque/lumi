@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useMovies } from '../../contexts/MoviesContext'
 import type { Movie } from '../../services/movieService'
 
-const DRAG_THRESHOLD = 60
+const DRAG_THRESHOLD = 40
 
 function MovieCarousel() {
   const { movies, loading, error } = useMovies()
@@ -11,6 +11,8 @@ function MovieCarousel() {
   const [isDragging, setIsDragging] = useState(false)
   const [hasAdvanced, setHasAdvanced] = useState(false)
   const dragStartX = useRef<number | null>(null)
+  const currentDragOffset = useRef(0)
+  const activePointerId = useRef<number | null>(null)
 
   const getTMDBImageUrl = (posterPath: string | null): string | null => {
     if (!posterPath) return null
@@ -44,26 +46,44 @@ function MovieCarousel() {
   }, [movies.length, isDragging])
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!e.isPrimary) return
     dragStartX.current = e.clientX
+    currentDragOffset.current = 0
+    activePointerId.current = e.pointerId
     setIsDragging(true)
     e.currentTarget.setPointerCapture(e.pointerId)
   }
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (dragStartX.current === null) return
-    setDragOffset(e.clientX - dragStartX.current)
+    if (dragStartX.current === null || activePointerId.current !== e.pointerId) return
+    const offset = e.clientX - dragStartX.current
+    currentDragOffset.current = offset
+    setDragOffset(offset)
   }
 
-  const handlePointerUp = () => {
+  const finishDrag = (changeSlide: boolean) => {
     if (dragStartX.current === null) return
-    if (dragOffset > DRAG_THRESHOLD) {
+    const finalOffset = currentDragOffset.current
+    if (changeSlide && finalOffset > DRAG_THRESHOLD) {
       goPrev()
-    } else if (dragOffset < -DRAG_THRESHOLD) {
+    } else if (changeSlide && finalOffset < -DRAG_THRESHOLD) {
       goNext()
     }
     dragStartX.current = null
+    currentDragOffset.current = 0
+    activePointerId.current = null
     setIsDragging(false)
     setDragOffset(0)
+  }
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (activePointerId.current !== e.pointerId) return
+    finishDrag(true)
+  }
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (activePointerId.current !== e.pointerId) return
+    finishDrag(false)
   }
 
   if (loading) {
@@ -112,11 +132,11 @@ function MovieCarousel() {
   return (
     <div className="relative mx-auto w-full max-w-4xl px-4 sm:px-0">
       <div
-        className="relative flex min-h-[380px] touch-pan-y select-none items-center justify-center overflow-hidden py-4 cursor-grab active:cursor-grabbing sm:min-h-[520px] sm:py-6 lg:min-h-[640px]"
+        className="relative flex min-h-[380px] touch-pan-y select-none items-center justify-center overflow-hidden overscroll-x-contain py-4 cursor-grab active:cursor-grabbing sm:min-h-[520px] sm:py-6 lg:min-h-[640px]"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
       >
         {prevMovie && (
           <button
